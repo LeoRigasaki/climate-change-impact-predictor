@@ -11,6 +11,8 @@ from datetime import datetime
 
 from .open_meteo_client import OpenMeteoClient
 from .nasa_power_client import NASAPowerClient
+from .world_bank_client import WorldBankClient
+
 from config.settings import RAW_DATA_DIR, DEFAULT_LOCATIONS
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,8 @@ class ClimateDataManager:
     def __init__(self):
         self.open_meteo = OpenMeteoClient()
         self.nasa_power = NASAPowerClient()
+        self.world_bank = WorldBankClient()
+        
         
         # Ensure data directories exist
         RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -51,7 +55,24 @@ class ClimateDataManager:
             self._save_data(data, f"air_quality_{location}_{start_date}_{end_date}")
         
         return data
-    
+    def fetch_climate_projections(
+        self,
+        countries: str = "all_countries",
+        scenario: str = "ssp245",
+        save: bool = True
+    ) -> Dict[str, Any]:
+        """Fetch climate projection data for specified countries."""
+        
+        logger.info(f"Fetching climate projections for {countries}")
+        data = self.world_bank.fetch_climate_projections(
+            countries=countries,
+            scenario=scenario
+        )
+        
+        if save:
+            self._save_data(data, f"climate_projections_{countries}_{scenario}")
+        
+        return data
     def fetch_meteorological_data(
         self,
         location: str,

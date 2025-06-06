@@ -61,7 +61,23 @@ def test_apis():
             
         except Exception as e:
             print(f"     ❌ Failed: {e}")
-    
+            
+            
+        print("\n🌍 Testing World Bank CCKP API...")
+        try:
+            print("  📊 Testing climate projections...")
+            
+            # Test World Bank API
+            wb_data = manager.fetch_climate_projections(
+                countries="USA",  # Test with USA only for speed
+                scenario="ssp245",
+                save=False
+            )
+            print(f"     ✅ Success! Got climate projection data")
+            
+        except Exception as e:
+            print(f"     ❌ Failed: {e}")
+
     print("\n🎯 API Testing Complete!")
     print("\nNext steps:")
     print("1. All APIs are working - ready for data collection!")
