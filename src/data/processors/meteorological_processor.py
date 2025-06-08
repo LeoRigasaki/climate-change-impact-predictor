@@ -20,61 +20,47 @@ class MeteorologicalProcessor(BaseDataProcessor):
         super().__init__("MeteorologicalProcessor")
     
     def process(self, data: Dict[str, Any]) -> pd.DataFrame:
-            """Process raw meteorological data into standardized DataFrame."""
-            self.validate_input(data)
-            
-            logger.info("Processing meteorological data...")
-            
-            # Extract parameter data
-            parameters = data.get('properties', {}).get('parameter', {})
-            
-            if not parameters:
-                raise ValueError("No parameter data found in meteorological response")
-            
-            # Convert to DataFrame
-            df = pd.DataFrame(parameters)
-            
-            # Handle different date formats
-            try:
-                # Try NASA POWER format first (YYYYMMDD)
-                df.index = pd.to_datetime(df.index, format='%Y%m%d')
-            except ValueError:
-                try:
-                    # Try standard datetime parsing as fallback
-                    df.index = pd.to_datetime(df.index)
-                except ValueError:
-                    # If index contains non-date values, transpose the DataFrame
-                    df = df.transpose()
-                    try:
-                        df.index = pd.to_datetime(df.index, format='%Y%m%d')
-                    except ValueError:
-                        df.index = pd.to_datetime(df.index)
-            
-            df.index.name = 'datetime'
-            
-            # Standardize column names
-            column_mapping = {
-                'T2M': 'temperature_2m',
-                'PRECTOTCORR': 'precipitation',
-                'WS2M': 'wind_speed_2m',
-                'RH2M': 'relative_humidity'
-            }
-            
-            df.rename(columns=column_mapping, inplace=True)
-            
-            # Calculate derived meteorological features
-            df = self._calculate_meteorological_features(df)
-            
-            # Add processing metadata
-            df = self.add_processing_metadata(df)
-            
-            # Add source metadata
-            if '_metadata' in data:
-                df.attrs.update(data['_metadata'])
-            
-            logger.info(f"Meteorological data processed: {df.shape[0]} records, {df.shape[1]} features")
-            return df
+        """Process raw meteorological data into standardized DataFrame."""
+        self.validate_input(data)
         
+        logger.info("Processing meteorological data...")
+        
+        # Extract parameter data
+        parameters = data.get('properties', {}).get('parameter', {})
+        
+        if not parameters:
+            raise ValueError("No parameter data found in meteorological response")
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(parameters)
+        
+        # Convert index to datetime with explicit format
+        df.index = pd.to_datetime(df.index, format='%Y%m%d')
+        df.index.name = 'datetime'
+        
+        # Standardize column names
+        column_mapping = {
+            'T2M': 'temperature_2m',
+            'PRECTOTCORR': 'precipitation',
+            'WS2M': 'wind_speed_2m',
+            'RH2M': 'relative_humidity'
+        }
+        
+        df.rename(columns=column_mapping, inplace=True)
+        
+        # Calculate derived meteorological features
+        df = self._calculate_meteorological_features(df)
+        
+        # Add processing metadata
+        df = self.add_processing_metadata(df)
+        
+        # Add source metadata
+        if '_metadata' in data:
+            df.attrs.update(data['_metadata'])
+        
+        logger.info(f"Meteorological data processed: {df.shape[0]} records, {df.shape[1]} features")
+        return df
+    
     def _calculate_meteorological_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Calculate derived meteorological features."""
         
