@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from .open_meteo_client import OpenMeteoClient
-from .nasa_power_client import NASAPowerClient
-from .world_bank_client import WorldBankClient
+from ..api.open_meteo import OpenMeteoClient
+from ..api.nasa_power import NASAPowerClient
+from ..api.world_bank import WorldBankClient
 
 from config.settings import RAW_DATA_DIR, DEFAULT_LOCATIONS
 

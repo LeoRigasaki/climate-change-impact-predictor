@@ -7,7 +7,7 @@ Validates that all API clients are working correctly.
 import logging
 from datetime import datetime, timedelta
 
-from src.data.data_manager import ClimateDataManager
+from src.core.data_manager import ClimateDataManager
 from config.settings import LOGGING_CONFIG
 
 # Set up logging

@@ -10,9 +10,9 @@ from pathlib import Path
 import json
 from datetime import datetime
 
-from .processors.base_processor import DataQualityChecker
-from .processors.air_quality_processor import AirQualityProcessor
-from .processors.meteorological_processor import MeteorologicalProcessor
+from ..data.processors.base_processor import DataQualityChecker
+from ..data.processors.air_quality_processor import AirQualityProcessor
+from ..data.processors.meteorological_processor import MeteorologicalProcessor
 from .data_manager import ClimateDataManager
 from config.settings import RAW_DATA_DIR, PROCESSED_DATA_DIR
 

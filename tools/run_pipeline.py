@@ -6,7 +6,7 @@ Demonstrates the complete pipeline with real data.
 
 import logging
 from datetime import datetime
-from src.data.pipeline import ClimateDataPipeline
+from src.core.pipeline import ClimateDataPipeline
 
 logging.basicConfig(level=logging.INFO)
 

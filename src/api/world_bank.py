@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from .base_api import BaseAPIClient
+from .base_client import BaseAPIClient
 from config.settings import API_CONFIGS
 
 logger = logging.getLogger(__name__)

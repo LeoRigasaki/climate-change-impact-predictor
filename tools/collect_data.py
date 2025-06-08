@@ -7,7 +7,7 @@ Collects representative datasets from all three major APIs.
 import logging
 from datetime import datetime, timedelta
 
-from src.data.data_manager import ClimateDataManager
+from src.core.data_manager import ClimateDataManager
 
 # Set up logging
 logging.basicConfig(

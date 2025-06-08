@@ -13,7 +13,7 @@ import pandas as pd
 # Add src to path
 sys.path.append('src')
 
-from src.data.pipeline import ClimateDataPipeline
+from src.core.pipeline import ClimateDataPipeline
 from src.data.processors.air_quality_processor import AirQualityProcessor
 from src.data.processors.meteorological_processor import MeteorologicalProcessor
 

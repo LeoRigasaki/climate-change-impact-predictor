@@ -1,22 +1,22 @@
 """
-NASA POWER API client.
-Handles meteorological data acquisition including temperature, precipitation, wind, and humidity.
+Open-Meteo Air Quality API client.
+Handles air quality data acquisition including pollutants, greenhouse gases, and AQI.
 """
 
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from .base_api import BaseAPIClient
-from config.settings import API_CONFIGS, NASA_POWER_PARAMS
+from .base_client import BaseAPIClient
+from config.settings import API_CONFIGS, AIR_QUALITY_PARAMS
 
 logger = logging.getLogger(__name__)
 
-class NASAPowerClient(BaseAPIClient):
-    """Client for NASA POWER API."""
+class OpenMeteoClient(BaseAPIClient):
+    """Client for Open-Meteo Air Quality API."""
     
     def __init__(self):
-        config = API_CONFIGS["nasa_power"]
+        config = API_CONFIGS["open_meteo"]
         super().__init__(
             base_url=config["base_url"],
             timeout=config["timeout"],
@@ -30,66 +30,67 @@ class NASAPowerClient(BaseAPIClient):
         start_date: str,
         end_date: str,
         parameters: Optional[List[str]] = None,
-        community: str = "RE"
+        include_current: bool = True
     ) -> Dict[str, Any]:
         """
-        Fetch meteorological data from NASA POWER API.
+        Fetch air quality data from Open-Meteo API.
         
         Args:
             latitude: Latitude coordinate
             longitude: Longitude coordinate  
             start_date: Start date in YYYY-MM-DD format
             end_date: End date in YYYY-MM-DD format
-            parameters: List of parameters to fetch
-            community: NASA POWER community (AG, RE, SB)
+            parameters: List of parameters to fetch (defaults to all available)
+            include_current: Whether to include current conditions
         
         Returns:
             Dictionary containing API response
         """
         # Validate inputs
         self.validate_coordinates(latitude, longitude)
-        start_dt, end_dt = self.validate_date_range(start_date, end_date)
+        self.validate_date_range(start_date, end_date)
         
         # Use default parameters if none specified
         if parameters is None:
-            parameters = NASA_POWER_PARAMS
-        
-        # Convert dates to NASA POWER format (YYYYMMDD)
-        start_formatted = start_dt.strftime("%Y%m%d")
-        end_formatted = end_dt.strftime("%Y%m%d")
+            parameters = AIR_QUALITY_PARAMS
         
         # Build request parameters
         params = {
-            "parameters": ",".join(parameters),
-            "community": community,
-            "longitude": longitude,
             "latitude": latitude,
-            "start": start_formatted,
-            "end": end_formatted,
-            "format": "JSON"
+            "longitude": longitude,
+            "start_date": start_date,
+            "end_date": end_date,
+            "hourly": ",".join(parameters)
         }
         
-        logger.info(f"Fetching NASA POWER data for coordinates ({latitude}, {longitude})")
+        # Add current conditions if requested
+        if include_current:
+            current_params = [
+                "european_aqi", "us_aqi", "pm10", "pm2_5", 
+                "carbon_monoxide", "nitrogen_dioxide", "sulphur_dioxide", 
+                "ozone", "uv_index", "ammonia", "dust"
+            ]
+            params["current"] = ",".join(current_params)
+        
+        logger.info(f"Fetching air quality data for coordinates ({latitude}, {longitude})")
         logger.info(f"Date range: {start_date} to {end_date}")
         logger.info(f"Parameters: {parameters}")
-        logger.info(f"Community: {community}")
         
         # Make API request
         response = self._make_request(self.base_url, params=params)
         
         # Add metadata
         response["_metadata"] = {
-            "source": "NASA POWER API",
+            "source": "Open-Meteo Air Quality API",
             "fetch_time": datetime.now().isoformat(),
             "coordinates": {"latitude": latitude, "longitude": longitude},
             "date_range": {"start": start_date, "end": end_date},
-            "parameters": parameters,
-            "community": community
+            "parameters": parameters
         }
         
-        logger.info("NASA POWER data fetched successfully")
+        logger.info("Air quality data fetched successfully")
         return response
     
     def get_available_parameters(self) -> List[str]:
-        """Get list of available meteorological parameters."""
-        return NASA_POWER_PARAMS.copy()
+        """Get list of available air quality parameters."""
+        return AIR_QUALITY_PARAMS.copy()
