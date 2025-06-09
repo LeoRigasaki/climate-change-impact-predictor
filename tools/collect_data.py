@@ -25,8 +25,8 @@ def collect_sample_datasets():
     manager = ClimateDataManager()
     
     # Define collection parameters
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")  # Yesterday
+    start_date = "2015-01-01"  # Full historical range
     
     locations = ["berlin", "houston"]  # Collect for 2 representative locations
     

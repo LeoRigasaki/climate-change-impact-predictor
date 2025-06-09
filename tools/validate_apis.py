@@ -23,8 +23,8 @@ def test_apis():
     manager = ClimateDataManager()
     
     # Test dates (last 7 days)
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
     
     print("🌍 Testing Climate Change Impact Predictor APIs")
     print(f"Date range: {start_date} to {end_date}")

@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -80,3 +81,15 @@ LOGGING_CONFIG = {
         }
     }
 }
+
+def get_full_historical_range():
+    """Get the full historical date range (2015 to yesterday)."""
+    start_date = "2015-01-01"
+    end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    return start_date, end_date
+
+def get_recent_range(days=365):
+    """Get recent date range (default: last year)."""
+    end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    return start_date, end_date

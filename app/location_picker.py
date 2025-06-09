@@ -468,8 +468,6 @@ class LocationPickerApp:
         st.sidebar.subheader("📊 Service Stats")
         
         stats = self.location_service.get_stats()
-        
-        st.sidebar.metric("Cached Locations", stats["cached_locations"])
         st.sidebar.metric("Geocoder Service", "Nominatim (OSM)")
         
         if st.sidebar.button("🔄 Refresh Stats"):

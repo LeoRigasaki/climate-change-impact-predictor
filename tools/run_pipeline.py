@@ -5,7 +5,7 @@ Demonstrates the complete pipeline with real data.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from src.core.pipeline import ClimateDataPipeline
 
 logging.basicConfig(level=logging.INFO)
@@ -19,9 +19,9 @@ def main():
     pipeline = ClimateDataPipeline()
     
     # Process with real collected data
-    location = "berlin"
-    start_date = "2025-05-07"
-    end_date = "2025-06-06"
+    location = "berlin" 
+    start_date = "2015-01-01"
+    end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
     
     print(f"\n📍 Processing: {location.title()}")
     print(f"📅 Date range: {start_date} to {end_date}")
