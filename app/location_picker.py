@@ -214,15 +214,8 @@ class EnhancedLocationPickerApp:
     def check_location_availability(self, location: LocationInfo):
         """Check data availability for a location."""
         try:
-            # Create new event loop if needed for Streamlit compatibility
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            # Run async availability check
-            availability = loop.run_until_complete(self.data_manager.check_data_availability(location))
+            # Use sync wrapper to handle async method properly
+            availability = self.data_manager.check_data_availability_sync(location)
             
             # Store in session state
             location_key = f"{location.latitude:.4f},{location.longitude:.4f}"
@@ -460,7 +453,7 @@ class EnhancedLocationPickerApp:
         
         with st.spinner(f"📥 Collecting climate data for {location.name}..."):
             try:
-                results = self.data_manager.fetch_adaptive_data(
+                results = self.data_manager.fetch_adaptive_data_sync(
                     location=location,
                     start_date=start_date,
                     end_date=end_date,

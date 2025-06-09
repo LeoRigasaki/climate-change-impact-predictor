@@ -168,7 +168,7 @@ class ClimateDataManager:
             logger.debug(f"🚫 World Bank availability check failed: {e}")
             return False
     
-    def fetch_adaptive_data(
+    async def fetch_adaptive_data(
         self,
         location: LocationInfo,
         start_date: str,
@@ -197,7 +197,7 @@ class ClimateDataManager:
         
         # Check data availability if not forced
         if not force_all:
-            availability = asyncio.run(self.check_data_availability(location))
+            availability = await self.check_data_availability(location)
         else:
             availability = {
                 "air_quality": True,
@@ -268,6 +268,50 @@ class ClimateDataManager:
         logger.info(f"🎯 Adaptive collection complete: {available_sources}/{total_sources} sources successful")
         
         return results
+    
+    def fetch_adaptive_data_sync(
+        self,
+        location: LocationInfo,
+        start_date: str,
+        end_date: str,
+        save: bool = True,
+        force_all: bool = False
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        🔄 Synchronous wrapper for fetch_adaptive_data (for backward compatibility).
+        """
+        try:
+            # Try to get existing event loop
+            asyncio.get_running_loop()
+            # If we're in an async context, we need to handle this differently
+            # Use a thread to run the async code
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    lambda: asyncio.run(self.fetch_adaptive_data(location, start_date, end_date, save, force_all))
+                )
+                return future.result()
+        except RuntimeError:
+            # No event loop running, safe to create one
+            return asyncio.run(self.fetch_adaptive_data(location, start_date, end_date, save, force_all))
+    
+    def check_data_availability_sync(self, location: LocationInfo) -> Dict[str, bool]:
+        """
+        🔄 Synchronous wrapper for check_data_availability (for backward compatibility).
+        """
+        try:
+            # Try to get existing event loop
+            asyncio.get_running_loop()
+            # If we're in an async context, we need to handle this differently
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    lambda: asyncio.run(self.check_data_availability(location))
+                )
+                return future.result()
+        except RuntimeError:
+            # No event loop running, safe to create one
+            return asyncio.run(self.check_data_availability(location))
     
     def fetch_air_quality_coordinates(
         self,
