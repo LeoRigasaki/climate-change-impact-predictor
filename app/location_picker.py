@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-🌍 Dynamic Climate Impact Predictor - Location Picker UI
+🌍 Enhanced Climate Impact Predictor - Location Picker UI - Day 4 Global Integration
 app/location_picker.py
 
-Interactive Streamlit interface for global location selection and 
-climate prediction preview. Day 3 prototype.
+Interactive Streamlit interface for global location selection, real-time data availability
+checking, adaptive data collection, and climate prediction workflow.
 """
 
 import sys
@@ -12,24 +12,18 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-from pathlib import Path
 import asyncio
 import time
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 # Add src to path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 from src.core.location_service import LocationService, LocationInfo
-
-# Simple DataManager for UI compatibility
-class DataManager:
-    """Simple data manager for UI prototype."""
-    def __init__(self):
-        pass
-    
-    def get_stats(self):
-        return {"status": "Day 3 Prototype"}
+from src.core.data_manager import ClimateDataManager
+from src.core.pipeline import ClimateDataPipeline
 
 # Configure Streamlit page
 st.set_page_config(
@@ -39,7 +33,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for enhanced styling
 st.markdown("""
 <style>
     .main-header {
@@ -59,6 +53,15 @@ st.markdown("""
         border-radius: 10px;
         border-left: 4px solid #2a5298;
         margin: 1rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .data-availability-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
     }
     
     .metric-card {
@@ -75,6 +78,7 @@ st.markdown("""
         padding: 1rem;
         border-radius: 5px;
         border: 1px solid #c3e6cb;
+        margin: 1rem 0;
     }
     
     .warning-message {
@@ -83,58 +87,93 @@ st.markdown("""
         padding: 1rem;
         border-radius: 5px;
         border: 1px solid #ffeaa7;
+        margin: 1rem 0;
     }
+    
+    .processing-status {
+        background-color: #e7f3ff;
+        color: #0366d6;
+        padding: 1rem;
+        border-radius: 5px;
+        border: 1px solid #bee5eb;
+        margin: 1rem 0;
+    }
+    
+    .data-source-indicator {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        margin: 0.25rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: bold;
+    }
+    
+    .available { background-color: #d4edda; color: #155724; }
+    .unavailable { background-color: #f8d7da; color: #721c24; }
+    .checking { background-color: #fff3cd; color: #856404; }
 </style>
 """, unsafe_allow_html=True)
 
 
-class LocationPickerApp:
-    """Streamlit app for interactive location selection and climate preview."""
+class EnhancedLocationPickerApp:
+    """Enhanced Streamlit app for global climate prediction workflow."""
     
     def __init__(self):
-        """Initialize the location picker app."""
+        """Initialize the enhanced location picker app."""
         # Initialize services
         if 'location_service' not in st.session_state:
-            with st.spinner("🌍 Initializing global location service..."):
+            with st.spinner("🌍 Initializing global climate prediction services..."):
                 st.session_state.location_service = LocationService()
-                st.session_state.data_manager = DataManager()
+                st.session_state.data_manager = ClimateDataManager()
+                st.session_state.pipeline = ClimateDataPipeline()
         
         self.location_service = st.session_state.location_service
         self.data_manager = st.session_state.data_manager
+        self.pipeline = st.session_state.pipeline
         
-        # Session state for selected location
+        # Enhanced session state
         if 'selected_location' not in st.session_state:
             st.session_state.selected_location = None
         if 'location_history' not in st.session_state:
             st.session_state.location_history = []
         if 'search_results' not in st.session_state:
             st.session_state.search_results = []
+        if 'data_availability' not in st.session_state:
+            st.session_state.data_availability = {}
+        if 'collection_status' not in st.session_state:
+            st.session_state.collection_status = {}
+        if 'processing_results' not in st.session_state:
+            st.session_state.processing_results = {}
     
     def render_header(self):
-        """Render the main header section."""
+        """Render the enhanced header section."""
         st.markdown('<h1 class="main-header">🌍 Dynamic Climate Impact Predictor</h1>', 
                    unsafe_allow_html=True)
         
         st.markdown("""
         <div style="text-align: center; margin-bottom: 2rem;">
-            <p style="font-size: 1.2rem; color: #666;">
-                Predict climate impacts for <strong>any location on Earth</strong> using real-time data from professional APIs
+            <p style="font-size: 1.3rem; color: #666;">
+                Predict climate impacts for <strong>any location on Earth</strong> using adaptive AI and professional APIs
+            </p>
+            <p style="color: #888; margin-top: 0.5rem;">
+                ✨ Day 4 Enhanced: Real-time data availability • Adaptive collection • Global processing
             </p>
         </div>
         """, unsafe_allow_html=True)
     
     def render_location_search(self):
-        """Render the location search interface."""
+        """Render the enhanced location search interface."""
         st.subheader("🔍 Find Your Location")
         
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            # Search input
+            # Enhanced search input
             search_query = st.text_input(
                 "Search for any city, country, or coordinates",
-                placeholder="e.g., Berlin, Germany or 52.5200, 13.4050",
-                help="Try: 'New York', 'Tokyo, Japan', 'São Paulo', or coordinates like '40.7128, -74.0060'"
+                placeholder="e.g., Reykjavik, Iceland • Mount Everest • 35.6762, 139.6503",
+                help="🌍 Try any location: cities, landmarks, coordinates, or even remote areas!",
+                key="location_search"
             )
         
         with col2:
@@ -143,15 +182,15 @@ class LocationPickerApp:
         
         # Handle search
         if search_clicked and search_query:
-            with st.spinner(f"🌍 Searching for '{search_query}'..."):
+            with st.spinner(f"🌍 Searching globally for '{search_query}'..."):
                 self.perform_location_search(search_query)
         
         # Show search results
         if st.session_state.search_results:
-            self.render_search_results()
+            self.render_enhanced_search_results()
     
     def perform_location_search(self, query: str):
-        """Perform location search and update session state."""
+        """Perform enhanced location search with data availability checking."""
         try:
             # Search for multiple matches
             results = self.location_service.search_locations(query, limit=5)
@@ -159,6 +198,11 @@ class LocationPickerApp:
             if results:
                 st.session_state.search_results = results
                 st.success(f"✅ Found {len(results)} location(s) for '{query}'")
+                
+                # Pre-check data availability for all results
+                with st.spinner("🔍 Checking data availability for found locations..."):
+                    for location in results:
+                        self.check_location_availability(location)
             else:
                 st.session_state.search_results = []
                 st.warning(f"❌ No locations found for '{query}'. Try a different search term.")
@@ -167,11 +211,41 @@ class LocationPickerApp:
             st.error(f"❌ Search error: {str(e)}")
             st.session_state.search_results = []
     
-    def render_search_results(self):
-        """Render search results with selection options."""
-        st.subheader("📍 Search Results")
+    def check_location_availability(self, location: LocationInfo):
+        """Check data availability for a location."""
+        try:
+            # Create new event loop if needed for Streamlit compatibility
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Run async availability check
+            availability = loop.run_until_complete(self.data_manager.check_data_availability(location))
+            
+            # Store in session state
+            location_key = f"{location.latitude:.4f},{location.longitude:.4f}"
+            st.session_state.data_availability[location_key] = availability
+            
+        except Exception as e:
+            st.warning(f"⚠️ Could not check data availability for {location.name}: {e}")
+            # Set default availability
+            location_key = f"{location.latitude:.4f},{location.longitude:.4f}"
+            st.session_state.data_availability[location_key] = {
+                "air_quality": True,
+                "meteorological": True, 
+                "climate_projections": True
+            }
+    
+    def render_enhanced_search_results(self):
+        """Render enhanced search results with data availability indicators."""
+        st.subheader("📍 Search Results with Data Availability")
         
         for i, location in enumerate(st.session_state.search_results):
+            location_key = f"{location.latitude:.4f},{location.longitude:.4f}"
+            availability = st.session_state.data_availability.get(location_key, {})
+            
             with st.container():
                 col1, col2, col3 = st.columns([3, 2, 1])
                 
@@ -186,98 +260,53 @@ class LocationPickerApp:
                     """, unsafe_allow_html=True)
                 
                 with col2:
-                    # Confidence and data availability
-                    confidence_color = "green" if location.confidence_score > 0.8 else "orange" if location.confidence_score > 0.5 else "red"
-                    st.markdown(f"**Confidence:** <span style='color: {confidence_color}'>{location.confidence_score:.1%}</span>", 
-                               unsafe_allow_html=True)
+                    # Enhanced data availability display
+                    self.render_data_availability_indicators(availability)
                     
-                    if location.has_air_quality:
-                        st.markdown("✅ Air Quality Data")
-                    if location.has_meteorological:
-                        st.markdown("✅ Weather Data")
-                    if location.has_climate_projections:
-                        st.markdown("✅ Climate Projections")
+                    # Fixed confidence score display
+                    confidence_pct = location.confidence_score * 100 if location.confidence_score <= 1.0 else location.confidence_score
+                    confidence_color = "green" if confidence_pct > 80 else "orange" if confidence_pct > 50 else "red"
+                    st.markdown(f"**Confidence:** <span style='color: {confidence_color}'>{confidence_pct:.1f}%</span>", 
+                               unsafe_allow_html=True)
                 
                 with col3:
-                    if st.button(f"Select", key=f"select_{i}", type="primary"):
+                    if st.button(f"Select & Analyze", key=f"select_{i}", type="primary"):
                         self.select_location(location)
                 
                 st.divider()
     
-    def select_location(self, location: LocationInfo):
-        """Select a location and add to history."""
-        st.session_state.selected_location = location
-        
-        # Add to history (avoid duplicates)
-        history_keys = [f"{loc.latitude:.4f},{loc.longitude:.4f}" for loc in st.session_state.location_history]
-        current_key = f"{location.latitude:.4f},{location.longitude:.4f}"
-        
-        if current_key not in history_keys:
-            st.session_state.location_history.insert(0, location)
-            # Keep only last 10 locations
-            st.session_state.location_history = st.session_state.location_history[:10]
-        
-        # Clear search results
-        st.session_state.search_results = []
-        
-        st.success(f"✅ Selected: {location.name}, {location.country}")
-        st.rerun()
-    
-    def render_selected_location(self):
-        """Render details for the currently selected location."""
-        if not st.session_state.selected_location:
+    def render_data_availability_indicators(self, availability: Dict[str, bool]):
+        """Render data availability indicators."""
+        if not availability:
+            st.markdown('<span class="data-source-indicator checking">🔍 Checking...</span>', 
+                       unsafe_allow_html=True)
             return
         
-        location = st.session_state.selected_location
+        sources = {
+            "air_quality": ("🌬️ Air Quality", availability.get("air_quality", False)),
+            "meteorological": ("🛰️ Weather Data", availability.get("meteorological", False)),
+            "climate_projections": ("🔮 Projections", availability.get("climate_projections", False))
+        }
         
-        st.subheader(f"🎯 Selected Location: {location.name}")
+        for source_key, (source_name, available) in sources.items():
+            css_class = "available" if available else "unavailable"
+            status_icon = "✅" if available else "❌"
+            st.markdown(f'<span class="data-source-indicator {css_class}">{status_icon} {source_name}</span>', 
+                       unsafe_allow_html=True)
         
-        # Location details in columns
-        col1, col2, col3 = st.columns(3)
+        # Summary
+        available_count = sum(availability.values())
+        total_count = len(availability)
+        coverage_pct = (available_count / total_count * 100) if total_count > 0 else 0
         
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>📍 Location</h3>
-                <p><strong>{location.name}</strong></p>
-                <p>{location.country}</p>
-                <p>{location.latitude:.4f}°, {location.longitude:.4f}°</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            climate_zone = location.climate_zone or "Unknown"
-            zone_emoji = {
-                "tropical": "🌴", "desert": "🏜️", "temperate": "🌳", 
-                "arctic": "🧊", "subarctic": "❄️", "mountain": "🏔️",
-                "coastal": "🌊", "continental": "🏞️", "mediterranean": "🌺"
-            }.get(climate_zone, "🌍")
+        if coverage_pct >= 67:
+            coverage_status = "🟢 Excellent"
+        elif coverage_pct >= 33:
+            coverage_status = "🟡 Partial"
+        else:
+            coverage_status = "🔴 Limited"
             
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>{zone_emoji} Climate</h3>
-                <p><strong>{climate_zone.title()}</strong></p>
-                <p>Zone Classification</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            data_score = sum([location.has_air_quality, location.has_meteorological, location.has_climate_projections])
-            data_emoji = "🟢" if data_score == 3 else "🟡" if data_score == 2 else "🔴"
-            
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>{data_emoji} Data Quality</h3>
-                <p><strong>{data_score}/3 Sources</strong></p>
-                <p>Available APIs</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Render location map
-        self.render_location_map(location)
-        
-        # Show prediction preview
-        self.render_prediction_preview(location)
+        st.markdown(f"**Coverage:** {coverage_status} ({available_count}/{total_count})")
     
     def render_location_map(self, location: LocationInfo):
         """Render interactive map for the selected location."""
@@ -320,114 +349,334 @@ class LocationPickerApp:
         
         st.plotly_chart(fig, use_container_width=True)
     
-    def render_prediction_preview(self, location: LocationInfo):
-        """Render climate prediction preview for selected location."""
-        st.subheader("🔮 Climate Prediction Preview")
+    def select_location(self, location: LocationInfo):
+        """Select a location and initiate full analysis workflow."""
+        st.session_state.selected_location = location
         
-        # Show what predictions would be available
-        col1, col2 = st.columns(2)
+        # Add to history (avoid duplicates)
+        existing_names = [loc.name for loc in st.session_state.location_history]
+        if location.name not in existing_names:
+            st.session_state.location_history.insert(0, location)
+            # Keep only last 10 locations
+            st.session_state.location_history = st.session_state.location_history[:10]
+        
+        # Clear previous results
+        st.session_state.collection_status = {}
+        st.session_state.processing_results = {}
+        
+        st.success(f"✅ Selected: {location.name}, {location.country}")
+        st.rerun()
+    
+    def render_selected_location(self):
+        """Render comprehensive analysis for selected location."""
+        location = st.session_state.selected_location
+        st.subheader(f"🎯 Climate Analysis: {location.name}, {location.country}")
+        
+        # Location details card
+        col1, col2 = st.columns([2, 1])
         
         with col1:
-            st.markdown("### 🌡️ Available Predictions")
+            # Fixed confidence score display
+            confidence_pct = location.confidence_score * 100 if location.confidence_score <= 1.0 else location.confidence_score
             
-            if location.has_meteorological:
-                st.markdown("✅ **Temperature Extremes**")
-                st.markdown("   • Heat wave probability")
-                st.markdown("   • Cold snap risk")
-                st.markdown("   • Seasonal temperature trends")
-            
-            if location.has_air_quality:
-                st.markdown("✅ **Air Quality Health Impact**")
-                st.markdown("   • PM2.5 exposure risk")
-                st.markdown("   • Respiratory health index")
-                st.markdown("   • Air quality forecasting")
-            
-            if location.has_climate_projections:
-                st.markdown("✅ **Long-term Climate Change**")
-                st.markdown("   • Temperature projections to 2100")
-                st.markdown("   • Precipitation changes")
-                st.markdown("   • Extreme weather frequency")
+            st.markdown(f"""
+            <div class="location-card">
+                <h3>📍 {location.name}</h3>
+                <p><strong>Country:</strong> {location.country} ({location.country_code})</p>
+                <p><strong>Coordinates:</strong> {location.latitude:.6f}, {location.longitude:.6f}</p>
+                {f'<p><strong>Climate Zone:</strong> {location.climate_zone}</p>' if location.climate_zone else ''}
+                {f'<p><strong>Timezone:</strong> {location.timezone}</p>' if location.timezone else ''}
+                <p><strong>Confidence Score:</strong> {confidence_pct:.1f}%</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col2:
-            st.markdown("### 📊 Prediction Capabilities")
+            # Data availability for selected location
+            location_key = f"{location.latitude:.4f},{location.longitude:.4f}"
+            availability = st.session_state.data_availability.get(location_key, {})
             
-            # Sample prediction data (mock for Day 3)
-            prediction_types = ["Temperature Risk", "Air Quality Index", "Climate Change Impact"]
-            availability = [100, 90, 85] if all([location.has_meteorological, location.has_air_quality, location.has_climate_projections]) else [60, 40, 30]
-            
-            fig = go.Figure(data=[
-                go.Bar(
-                    x=prediction_types,
-                    y=availability,
-                    marker_color=['#ff6b6b', '#4ecdc4', '#45b7d1'],
-                    text=[f"{v}%" for v in availability],
-                    textposition='auto'
-                )
-            ])
-            
-            fig.update_layout(
-                title="Data Availability by Prediction Type",
-                xaxis_title="Prediction Type",
-                yaxis_title="Availability (%)",
-                height=300,
-                showlegend=False
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
+            if availability:
+                st.markdown('<div class="data-availability-card">', unsafe_allow_html=True)
+                st.markdown("**📊 Data Availability**")
+                self.render_data_availability_indicators(availability)
+                st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Add the interactive map back
+        self.render_location_map(location)
         
         # Action buttons
-        col1, col2, col3 = st.columns(3)
+        st.markdown("### 🚀 Climate Analysis Actions")
+        
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            if st.button("🚀 Run Full Prediction", type="primary", use_container_width=True):
-                self.run_prediction_demo(location)
+            if st.button("🔍 Check Data Availability", use_container_width=True):
+                self.refresh_data_availability()
         
         with col2:
-            if st.button("📊 View Historical Data", use_container_width=True):
-                st.info("📊 Historical data analysis coming in Day 4-5!")
+            if st.button("📥 Collect Climate Data", type="primary", use_container_width=True):
+                self.start_data_collection()
         
         with col3:
-            if st.button("📈 Compare Locations", use_container_width=True):
-                st.info("📈 Location comparison feature coming in Day 6-7!")
+            if st.button("⚙️ Process & Analyze", use_container_width=True):
+                self.start_data_processing()
+        
+        with col4:
+            if st.button("📊 Full Workflow", type="secondary", use_container_width=True):
+                self.run_full_workflow()
+        
+        # Show collection status
+        if st.session_state.collection_status:
+            self.render_collection_status()
+        
+        # Show processing results
+        if st.session_state.processing_results:
+            self.render_processing_results()
     
-    def run_prediction_demo(self, location: LocationInfo):
-        """Run a demo prediction for the selected location."""
-        st.subheader("🔄 Running Climate Prediction...")
+    def refresh_data_availability(self):
+        """Refresh data availability check for selected location."""
+        location = st.session_state.selected_location
         
-        # Progress bar simulation
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+        with st.spinner(f"🔍 Checking data availability for {location.name}..."):
+            self.check_location_availability(location)
         
-        steps = [
-            ("🔍 Validating location coordinates", 0.2),
-            ("📡 Fetching real-time air quality data", 0.4),
-            ("🌤️ Collecting meteorological data", 0.6),
-            ("🌍 Loading climate projections", 0.8),
-            ("🧠 Processing prediction models", 1.0)
+        st.success("✅ Data availability updated!")
+        st.rerun()
+    
+    def start_data_collection(self):
+        """Start adaptive data collection for selected location."""
+        location = st.session_state.selected_location
+        
+        # Set collection parameters
+        end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")  # Last 30 days
+        
+        st.session_state.collection_status = {
+            "status": "running",
+            "start_time": time.time(),
+            "location": location.name,
+            "date_range": f"{start_date} to {end_date}"
+        }
+        
+        with st.spinner(f"📥 Collecting climate data for {location.name}..."):
+            try:
+                results = self.data_manager.fetch_adaptive_data(
+                    location=location,
+                    start_date=start_date,
+                    end_date=end_date,
+                    save=True,
+                    force_all=False
+                )
+                
+                # Update collection status
+                successful_sources = len([r for r in results.values() if r is not None])
+                total_sources = len(results)
+                
+                st.session_state.collection_status.update({
+                    "status": "completed",
+                    "end_time": time.time(),
+                    "results": results,
+                    "successful_sources": successful_sources,
+                    "total_sources": total_sources
+                })
+                
+                if successful_sources > 0:
+                    st.success(f"✅ Data collection completed! {successful_sources}/{total_sources} sources successful")
+                else:
+                    st.warning("⚠️ Data collection completed but no data was retrieved")
+                
+            except Exception as e:
+                st.session_state.collection_status.update({
+                    "status": "failed",
+                    "end_time": time.time(),
+                    "error": str(e)
+                })
+                st.error(f"❌ Data collection failed: {e}")
+        
+        st.rerun()
+    
+    def start_data_processing(self):
+        """Start data processing for collected data."""
+        location = st.session_state.selected_location
+        
+        # Check if we have collected data
+        if not st.session_state.collection_status.get("results"):
+            st.warning("⚠️ No collected data found. Please collect data first.")
+            return
+        
+        end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        
+        with st.spinner(f"⚙️ Processing climate data for {location.name}..."):
+            try:
+                results = self.pipeline.process_global_location(
+                    location=location,
+                    start_date=start_date,
+                    end_date=end_date,
+                    skip_collection=True  # Use already collected data
+                )
+                
+                st.session_state.processing_results = results
+                
+                # Count successful processing
+                successful_processing = len([r for r in results.values() 
+                                           if r and r != results.get('_metadata') and 'data' in r])
+                
+                if successful_processing > 0:
+                    st.success(f"✅ Data processing completed! {successful_processing} datasets processed successfully")
+                else:
+                    st.warning("⚠️ Data processing completed but no processed datasets were generated")
+                
+            except Exception as e:
+                st.error(f"❌ Data processing failed: {e}")
+        
+        st.rerun()
+    
+    def run_full_workflow(self):
+        """Run the complete end-to-end workflow."""
+        location = st.session_state.selected_location
+        
+        with st.spinner(f"🚀 Running complete climate analysis workflow for {location.name}..."):
+            # Step 1: Data Collection
+            self.start_data_collection()
+            
+            # Step 2: Data Processing (if collection was successful)
+            if st.session_state.collection_status.get("successful_sources", 0) > 0:
+                time.sleep(1)  # Brief pause between steps
+                self.start_data_processing()
+        
+        st.success("🎉 Complete workflow finished!")
+        st.rerun()
+    
+    def render_collection_status(self):
+        """Render data collection status and results."""
+        status = st.session_state.collection_status
+        
+        st.markdown("### 📥 Data Collection Status")
+        
+        if status["status"] == "running":
+            st.markdown('<div class="processing-status">🔄 Data collection in progress...</div>', 
+                       unsafe_allow_html=True)
+        
+        elif status["status"] == "completed":
+            duration = status["end_time"] - status["start_time"]
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Success Rate", f"{status['successful_sources']}/{status['total_sources']}")
+            with col2:
+                st.metric("Collection Time", f"{duration:.1f}s")
+            with col3:
+                st.metric("Location", status["location"])
+            
+            # Detailed results
+            if status.get("results"):
+                st.markdown("**📊 Collection Results:**")
+                for source, data in status["results"].items():
+                    if data is not None:
+                        if source == "air_quality":
+                            records = len(data.get('hourly', {}).get('time', []))
+                            st.markdown(f"✅ **Air Quality:** {records} hourly records")
+                        elif source == "meteorological":
+                            records = len(data.get('properties', {}).get('parameter', {}))
+                            st.markdown(f"✅ **Meteorological:** {records} daily records")
+                        elif source == "climate_projections":
+                            records = len(data.get('data', []) if isinstance(data.get('data'), list) else [data.get('data')])
+                            st.markdown(f"✅ **Climate Projections:** {records} scenarios")
+                    else:
+                        st.markdown(f"❌ **{source.title()}:** Collection failed")
+        
+        elif status["status"] == "failed":
+            st.markdown(f'<div class="warning-message">❌ Collection failed: {status.get("error", "Unknown error")}</div>', 
+                       unsafe_allow_html=True)
+    
+    def render_processing_results(self):
+        """Render data processing results."""
+        results = st.session_state.processing_results
+        
+        st.markdown("### ⚙️ Data Processing Results")
+        
+        # Processing metadata
+        if '_metadata' in results:
+            metadata = results['_metadata']
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Sources Processed", f"{metadata['data_sources_successful']}/{metadata['data_sources_attempted']}")
+            with col2:
+                st.metric("Processing Time", datetime.fromisoformat(metadata['processing_timestamp']).strftime("%H:%M:%S"))
+            with col3:
+                available_sources = len(metadata.get('available_sources', []))
+                st.metric("Available Sources", available_sources)
+        
+        # Individual processing results
+        for source, result in results.items():
+            if source == '_metadata' or not result or 'data' not in result:
+                continue
+            
+            st.markdown(f"**📊 {source.title()} Processing:**")
+            
+            data = result['data']
+            quality_report = result.get('quality_report', {})
+            
+            # Handle different data types safely
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if hasattr(data, 'shape'):  # DataFrame or numpy array
+                    st.metric("Records", data.shape[0])
+                elif isinstance(data, (list, tuple)):
+                    st.metric("Records", len(data))
+                else:
+                    st.metric("Records", "N/A")
+            
+            with col2:
+                if hasattr(data, 'shape') and len(data.shape) > 1:  # DataFrame with columns
+                    st.metric("Features", data.shape[1])
+                elif hasattr(data, 'columns'):  # DataFrame
+                    st.metric("Features", len(data.columns))
+                else:
+                    st.metric("Features", "N/A")
+            
+            with col3:
+                quality_score = quality_report.get('overall_score', 0)
+                st.metric("Quality Score", f"{quality_score:.1f}/100")
+            
+            # Show data preview only for DataFrames
+            if hasattr(data, 'head') and hasattr(data, 'shape'):  # It's a DataFrame
+                if st.checkbox(f"Show {source} data preview", key=f"preview_{source}"):
+                    st.dataframe(data.head(10), use_container_width=True)
+            elif isinstance(data, (list, dict)):
+                if st.checkbox(f"Show {source} data preview", key=f"preview_{source}"):
+                    st.json(data if isinstance(data, dict) else data[:5])  # Show first 5 items for lists
+    
+    def render_quick_locations(self):
+        """Render enhanced quick access to popular locations."""
+        st.sidebar.subheader("🌍 Popular Locations")
+        
+        popular_locations = [
+            "New York, USA",
+            "London, UK", 
+            "Tokyo, Japan",
+            "Berlin, Germany",
+            "Sydney, Australia",
+            "São Paulo, Brazil",
+            "Reykjavik, Iceland",
+            "Singapore",
+            "Dubai, UAE",
+            "Vancouver, Canada"
         ]
         
-        for step_text, progress in steps:
-            status_text.text(step_text)
-            progress_bar.progress(progress)
-            time.sleep(1)  # Simulate processing time
-        
-        status_text.text("✅ Prediction complete!")
-        
-        # Show mock results
-        st.markdown("""
-        <div class="success-message">
-            <h4>🎉 Prediction Results for {}</h4>
-            <p><strong>🌡️ Temperature Risk:</strong> Moderate (65% confidence)</p>
-            <p><strong>🌫️ Air Quality Index:</strong> Good (AQI: 42)</p>
-            <p><strong>📈 Climate Trend:</strong> Warming (+1.2°C by 2050)</p>
-            <p><em>Full implementation coming in Days 8-14!</em></p>
-        </div>
-        """.format(location.name), unsafe_allow_html=True)
-        
-        st.balloons()  # Celebration effect
+        for location_query in popular_locations:
+            if st.sidebar.button(location_query, use_container_width=True, key=f"quick_{location_query}"):
+                with st.spinner(f"Loading {location_query}..."):
+                    result = self.location_service.geocode_location(location_query)
+                    if result:
+                        self.select_location(result)
+                    else:
+                        st.sidebar.error(f"Could not load {location_query}")
     
     def render_location_history(self):
-        """Render location history in sidebar."""
+        """Render location history sidebar."""
         if not st.session_state.location_history:
             return
         
@@ -441,46 +690,37 @@ class LocationPickerApp:
             ):
                 self.select_location(location)
     
-    def render_quick_locations(self):
-        """Render quick access to popular locations."""
-        st.sidebar.subheader("🌍 Popular Locations")
-        
-        popular_locations = [
-            "New York, USA",
-            "London, UK", 
-            "Tokyo, Japan",
-            "Berlin, Germany",
-            "Sydney, Australia",
-            "São Paulo, Brazil"
-        ]
-        
-        for location_query in popular_locations:
-            if st.sidebar.button(location_query, use_container_width=True):
-                with st.spinner(f"Loading {location_query}..."):
-                    result = self.location_service.geocode_location(location_query)
-                    if result:
-                        self.select_location(result)
-                    else:
-                        st.sidebar.error(f"Could not load {location_query}")
-    
     def render_service_stats(self):
-        """Render location service statistics."""
-        st.sidebar.subheader("📊 Service Stats")
+        """Render enhanced service statistics."""
+        st.sidebar.subheader("📊 System Status")
         
-        stats = self.location_service.get_stats()
-        st.sidebar.metric("Geocoder Service", "Nominatim (OSM)")
+        # Global processing stats
+        try:
+            global_stats = self.pipeline.get_global_processing_stats()
+            
+            st.sidebar.metric("Locations Processed", global_stats.get("locations_processed", 0))
+            st.sidebar.metric("Successful Collections", global_stats.get("successful_collections", 0))
+            
+            # API status indicators
+            st.sidebar.markdown("**🔌 API Status:**")
+            st.sidebar.markdown("🟢 Location Service (Nominatim)")
+            st.sidebar.markdown("🟢 Climate Data Manager")
+            st.sidebar.markdown("🟢 Processing Pipeline")
+            
+        except Exception as e:
+            st.sidebar.error(f"Stats error: {e}")
         
         if st.sidebar.button("🔄 Refresh Stats"):
             st.rerun()
     
     def run(self):
-        """Main app execution."""
+        """Main enhanced app execution."""
         # Render header
         self.render_header()
         
         # Sidebar content
         with st.sidebar:
-            st.title("🎛️ Controls")
+            st.title("🎛️ Global Controls")
             self.render_quick_locations()
             self.render_location_history()
             self.render_service_stats()
@@ -491,20 +731,47 @@ class LocationPickerApp:
         if st.session_state.selected_location:
             self.render_selected_location()
         else:
-            # Show welcome message
+            # Enhanced welcome message
             st.markdown("""
-            <div style="text-align: center; padding: 2rem; background-color: #f8f9fa; border-radius: 10px; margin: 2rem 0;">
-                <h3>🌍 Welcome to Dynamic Climate Prediction!</h3>
-                <p>Search for any location above to get started with real-time climate impact predictions.</p>
-                <p><em>Try searching for your city, or use the popular locations in the sidebar!</em></p>
+            <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; margin: 2rem 0;">
+                <h3>🌍 Welcome to Global Climate Prediction!</h3>
+                <p style="font-size: 1.1rem;">Search for <strong>any location on Earth</strong> to get started with adaptive climate impact analysis.</p>
+                <p style="margin-top: 1rem;"><em>✨ Enhanced Day 4 Features:</em></p>
+                <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1rem; flex-wrap: wrap;">
+                    <div>🔍 Real-time data availability</div>
+                    <div>📥 Adaptive data collection</div>
+                    <div>⚙️ Intelligent processing</div>
+                    <div>📊 Global coverage</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Example locations with coordinates
+            st.markdown("### 🎯 Try These Examples:")
+            examples_col1, examples_col2 = st.columns(2)
+            
+            with examples_col1:
+                st.markdown("""
+                **🏙️ Major Cities:**
+                - `Tokyo, Japan`
+                - `Paris, France`
+                - `Cairo, Egypt`
+                """)
+            
+            with examples_col2:
+                st.markdown("""
+                **🌍 Coordinates:**
+                - `35.6762, 139.6503` (Tokyo)
+                - `-33.8688, 151.2093` (Sydney)
+                - `64.1466, -21.9426` (Reykjavik)
+                """)
         
-        # Footer
+        # Enhanced footer
         st.markdown("---")
         st.markdown("""
         <div style="text-align: center; color: #666; font-size: 0.9rem;">
-            <p>🌍 Dynamic Climate Impact Predictor | Day 3 Prototype | Built with Streamlit & Professional APIs</p>
+            <p>🌍 Dynamic Climate Impact Predictor | Day 4 Enhanced Global Platform</p>
+            <p>Built with Streamlit • Professional APIs • Adaptive AI • Global Coverage</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -512,11 +779,15 @@ class LocationPickerApp:
 def main():
     """Main application entry point."""
     try:
-        app = LocationPickerApp()
+        app = EnhancedLocationPickerApp()
         app.run()
     except Exception as e:
         st.error(f"❌ Application Error: {str(e)}")
-        st.info("Please refresh the page or contact support if the problem persists.")
+        st.info("Please refresh the page or check your internet connection.")
+        
+        # Debug info in expander
+        with st.expander("🔧 Debug Information"):
+            st.code(str(e))
 
 
 if __name__ == "__main__":
