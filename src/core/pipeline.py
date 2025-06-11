@@ -55,7 +55,7 @@ class ClimateDataPipeline:
         
         logger.info("🌍 Enhanced ClimateDataPipeline initialized with global support")
     
-    def process_global_location(
+    async def process_global_location(
         self,
         location: LocationInfo,
         start_date: str,
@@ -97,7 +97,7 @@ class ClimateDataPipeline:
         if not skip_collection:
             logger.info("🔄 Phase 1: Adaptive Data Collection")
             try:
-                raw_data = self.data_manager.fetch_adaptive_data(
+                raw_data = await self.data_manager.fetch_adaptive_data(
                     location=location,
                     start_date=start_date,
                     end_date=end_date,
@@ -545,7 +545,7 @@ class ClimateDataPipeline:
                 logger.warning(f"⚠️ Global processing failed, falling back to legacy method: {e}")
                 return self._legacy_process_location_data(location, start_date, end_date, skip_collection)
     
-    def _legacy_process_location_data(
+    async def _legacy_process_location_data(
         self,
         location: str,
         start_date: str,
@@ -561,7 +561,7 @@ class ClimateDataPipeline:
         # Step 1: Data Collection (legacy method)
         if not skip_collection:
             try:
-                raw_data = self.data_manager.fetch_all_data(
+                raw_data = await self.data_manager.fetch_all_data(
                     location=location,
                     start_date=start_date,
                     end_date=end_date,

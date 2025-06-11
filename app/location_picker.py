@@ -1103,7 +1103,7 @@ class EnhancedLocationPickerApp:
         else:
             # Enhanced welcome message
             st.markdown("""
-            <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; margin: 2rem 0;">
+            <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; margin: 2rem 0; color: #111;">
                 <h3>🌍 Welcome to Global Climate Prediction!</h3>
                 <p style="font-size: 1.1rem;">Search for <strong>any location on Earth</strong> to get started with adaptive climate impact analysis.</p>
                 <p style="margin-top: 1rem;"><em>✨ Day 5 Enhanced Features:</em></p>

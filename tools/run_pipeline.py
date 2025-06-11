@@ -21,7 +21,7 @@ from src.core.location_service import LocationService
 
 logging.basicConfig(level=logging.INFO)
 
-def main():
+async def main():
     """Enhanced main function demonstrating Day 4 global capabilities."""
     
     print("🌍 Day 4 Enhanced: Global Climate Data Processing Pipeline")
@@ -61,13 +61,13 @@ def main():
     
     # Handle different modes
     if args.demo_mode:
-        run_global_demo(pipeline, location_service, start_date, end_date, args.collect)
+        await run_global_demo(pipeline, location_service, start_date, end_date, args.collect)
     elif args.location:
-        run_single_location(pipeline, location_service, args.location, start_date, end_date, args.collect)
+        await run_single_location(pipeline, location_service, args.location, start_date, end_date, args.collect)
     else:
-        run_interactive_mode(pipeline, location_service, start_date, end_date, args.collect)
+        await run_interactive_mode(pipeline, location_service, start_date, end_date, args.collect)
 
-def run_single_location(pipeline, location_service, location_input, start_date, end_date, force_collect=False):
+async def run_single_location(pipeline, location_service, location_input, start_date, end_date, force_collect=False):
     """Process a single global location."""
     
     print(f"🎯 Single Location Mode: Processing '{location_input}'")
@@ -111,7 +111,7 @@ def run_single_location(pipeline, location_service, location_input, start_date, 
     print()
     
     # Step 2: Run global processing pipeline
-    process_location_with_pipeline(pipeline, location_service, location_info, start_date, end_date, force_collect=force_collect)
+    await process_location_with_pipeline(pipeline, location_service, location_info, start_date, end_date, force_collect=force_collect)
 
 def run_global_demo(pipeline, location_service, start_date, end_date, force_collect=False):
     """Run demo with multiple diverse global locations."""
@@ -185,7 +185,7 @@ def run_global_demo(pipeline, location_service, start_date, end_date, force_coll
     else:
         print("\n⚠️ No locations processed successfully")
 
-def run_interactive_mode(pipeline, location_service, start_date, end_date, force_collect=False):
+async def run_interactive_mode(pipeline, location_service, start_date, end_date, force_collect=False):
     """Run interactive mode for user input."""
     
     print("🤖 Interactive Mode: Global Location Processing")
@@ -216,10 +216,10 @@ def run_interactive_mode(pipeline, location_service, start_date, end_date, force
             continue
         
         print()
-        run_single_location(pipeline, location_service, location_input, start_date, end_date, force_collect)
+        await run_single_location(pipeline, location_service, location_input, start_date, end_date, force_collect)
         print("\n" + "-" * 50)
 
-def process_location_with_pipeline(pipeline, location_service, location_info, start_date, end_date, summary_mode=False, force_collect=False):
+async def process_location_with_pipeline(pipeline, location_service, location_info, start_date, end_date, summary_mode=False, force_collect=False):
     """Process a location using the enhanced global pipeline."""
     
     if not summary_mode:
@@ -235,7 +235,7 @@ def process_location_with_pipeline(pipeline, location_service, location_info, st
                 print("⏱️ This may take 30-60 seconds...")
                 print()
             
-            results = pipeline.process_global_location(
+            results = await pipeline.process_global_location(
                 location=location_info,
                 start_date=start_date,
                 end_date=end_date,
@@ -246,7 +246,7 @@ def process_location_with_pipeline(pipeline, location_service, location_info, st
             if not summary_mode:
                 print("🔍 Step 1: Checking for existing data...")
             
-            results = pipeline.process_global_location(
+            results = await pipeline.process_global_location(
                 location=location_info,
                 start_date=start_date,
                 end_date=end_date,
@@ -264,7 +264,7 @@ def process_location_with_pipeline(pipeline, location_service, location_info, st
                 print()
                 
                 # Collect new data
-                results = pipeline.process_global_location(
+                results = await pipeline.process_global_location(
                     location=location_info,
                     start_date=start_date,
                     end_date=end_date,
@@ -273,7 +273,7 @@ def process_location_with_pipeline(pipeline, location_service, location_info, st
             elif successful_sources == 0 and summary_mode:
                 # In demo mode, try a quick collection with shorter date range
                 quick_start = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-                results = pipeline.process_global_location(
+                results = await pipeline.process_global_location(
                     location=location_info,
                     start_date=quick_start,
                     end_date=end_date,
@@ -415,7 +415,8 @@ def show_day4_achievements():
 
 if __name__ == "__main__":
     try:
-        main()
+        import asyncio
+        asyncio.run(main())
         show_day4_achievements()
         print(f"\nCompleted: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
