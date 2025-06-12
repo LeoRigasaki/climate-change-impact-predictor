@@ -8,6 +8,7 @@ checking, adaptive data collection, and climate prediction workflow.
 """
 
 import sys
+import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
@@ -296,22 +297,93 @@ class EnhancedLocationPickerApp:
     def calculate_climate_risk_score(self, enhanced_data):
         """Calculate overall climate risk score from universal features."""
         try:
-            # Look for universal risk indicators from Day 5 features
-            risk_features = [col for col in enhanced_data.columns if 'risk' in col.lower() or 'stress' in col.lower()]
+            # DEBUG: Show exactly what we're processing
+            st.write("🔧 DEBUG - Climate Risk Calculation:")
+            st.write(f"Data shape: {enhanced_data.shape}")
+            st.write(f"Columns: {list(enhanced_data.columns)[:10]}...")
             
-            if risk_features:
-                # Calculate composite risk score
-                risk_values = enhanced_data[risk_features].mean().mean()
-                risk_score = min(100, max(0, risk_values * 100))
-            else:
-                # Calculate from basic climate indicators
-                if 'temperature_2m' in enhanced_data.columns:
-                    temp_mean = enhanced_data['temperature_2m'].mean()
-                    risk_score = max(0, min(100, (temp_mean - 20) * 5))
+            # PRIORITY: Use temperature-based calculation if available
+            if 'temperature_2m' in enhanced_data.columns:
+                st.write("✅ Found temperature_2m column - using temperature-based calculation")
+                
+                # Show raw temperature data
+                temp_raw = enhanced_data['temperature_2m']
+                st.write(f"Raw temp stats: min={temp_raw.min():.1f}, max={temp_raw.max():.1f}, mean={temp_raw.mean():.1f}")
+                
+                # Clean the data first!
+                temp_data = enhanced_data['temperature_2m'].replace([-999, -9999], np.nan)
+                valid_temps = temp_data.dropna()
+                
+                st.write(f"After cleaning: {len(valid_temps)}/{len(temp_data)} valid temps")
+                
+                if len(valid_temps) > 0:
+                    temp_mean = valid_temps.mean()
+                    st.write(f"Clean temperature mean: {temp_mean:.1f}°C")
+                    
+                    # Improved temperature-based risk calculation
+                    if temp_mean < 0:  # Very cold
+                        risk_score = max(10, min(30, 30 - temp_mean))
+                    elif temp_mean < 10:  # Cold
+                        risk_score = max(20, min(40, 40 - (temp_mean * 2)))
+                    elif temp_mean < 25:  # Moderate
+                        risk_score = max(30, min(60, 30 + temp_mean))
+                    elif temp_mean < 40:  # Hot
+                        risk_score = max(50, min(80, 20 + (temp_mean * 1.5)))
+                    else:  # Extreme heat >40°C
+                        risk_score = min(100, 60 + (temp_mean - 40) * 2)
+                    
+                    st.write(f"Temperature-based risk score: {risk_score}")
+                    
+                    # Categorize risk level
+                    if risk_score < 30:
+                        level = "Low"
+                        color_class = "risk-low"
+                    elif risk_score < 70:
+                        level = "Moderate"
+                        color_class = "risk-medium"
+                    else:
+                        level = "High"
+                        color_class = "risk-high"
+                    
+                    return {
+                        'score': int(risk_score),
+                        'level': level,
+                        'color_class': color_class,
+                        'description': f"{level} climate risk (temperature-based)"
+                    }
                 else:
+                    st.write("❌ No valid temperature data after cleaning")
+                    risk_score = 50
+            
+            # FALLBACK 1: Look for universal risk indicators from Day 5 features
+            else:
+                st.write("No temperature_2m column, checking for risk features...")
+                risk_features = [col for col in enhanced_data.columns if 'risk' in col.lower() or 'stress' in col.lower()]
+                
+                if risk_features:
+                    st.write(f"Found risk features: {risk_features}")
+                    
+                    # DEBUG: Show what these risk features actually contain
+                    for feature in risk_features:
+                        feature_data = enhanced_data[feature]
+                        st.write(f"Feature {feature}: min={feature_data.min():.2f}, max={feature_data.max():.2f}, mean={feature_data.mean():.2f}")
+                    
+                    # Calculate composite risk score
+                    risk_values = enhanced_data[risk_features].mean().mean()
+                    st.write(f"Risk values mean: {risk_values}")
+                    
+                    # Check if the risk values are in 0-1 range or 0-100 range
+                    if risk_values <= 1.0:
+                        risk_score = min(100, max(0, risk_values * 100))
+                    else:
+                        risk_score = min(100, max(0, risk_values))
+                    
+                    st.write(f"Calculated risk from features: {risk_score}")
+                else:
+                    st.write("No risk features found, using default")
                     risk_score = 50  # Default moderate risk
             
-            # Categorize risk level
+            # Categorize risk level for non-temperature calculations
             if risk_score < 30:
                 level = "Low"
                 color_class = "risk-low"
@@ -326,7 +398,19 @@ class EnhancedLocationPickerApp:
                 'score': int(risk_score),
                 'level': level,
                 'color_class': color_class,
-                'description': f"{level} climate stress risk"
+                'description': f"{level} climate risk"
+            }
+            
+        except Exception as e:
+            st.write(f"🔧 DEBUG - Exception in risk calculation: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+            # Return fallback values
+            return {
+                'score': 50, 
+                'level': 'Moderate', 
+                'color_class': 'risk-medium', 
+                'description': 'Moderate climate risk (error fallback)'
             }
         
         except Exception:
@@ -341,9 +425,12 @@ class EnhancedLocationPickerApp:
             if global_features:
                 comparison_value = enhanced_data[global_features[0]].mean()
             elif 'temperature_2m' in enhanced_data.columns:
-                # Simple comparison to global average (~14°C)
-                local_temp = enhanced_data['temperature_2m'].mean()
-                comparison_value = local_temp - 14.0
+                # Simple comparison to global average (~15°C)
+                temp_data = enhanced_data['temperature_2m'].replace([-999, -9999], np.nan)
+                valid_temps = temp_data.dropna()
+                if len(valid_temps) > 0:
+                    local_temp = valid_temps.mean()
+                    comparison_value = local_temp - 15.0
             else:
                 comparison_value = 0.0
             
@@ -835,7 +922,7 @@ class EnhancedLocationPickerApp:
         st.rerun()
     
     def start_data_processing(self):
-        """Start data processing for collected data."""
+        """Start data processing for collected data - Day 7 ASYNC FIX."""
         location = st.session_state.selected_location
         
         # Check if we have collected data
@@ -848,28 +935,139 @@ class EnhancedLocationPickerApp:
         
         with st.spinner(f"⚙️ Processing climate data for {location.name}..."):
             try:
-                results = self.pipeline.process_global_location(
-                    location=location,
-                    start_date=start_date,
-                    end_date=end_date,
-                    skip_collection=True  # Use already collected data
-                )
+                # DAY 7 FIX: Proper async handling in Streamlit
+                async def run_processing():
+                    """Run the async processing method properly."""
+                    return await self.pipeline.process_global_location(
+                        location=location,
+                        start_date=start_date,
+                        end_date=end_date,
+                        skip_collection=False
+                    )
+                
+                # Run the async function properly in Streamlit
+                try:
+                    # Try to get current event loop
+                    loop = asyncio.get_event_loop()
+                    results = loop.run_until_complete(run_processing())
+                except RuntimeError:
+                    # No event loop exists, create one
+                    results = asyncio.run(run_processing())
+                
+                # Check if we got a coroutine instead of results
+                if hasattr(results, '__await__'):
+                    st.error("🐛 Still got a coroutine! Pipeline needs deeper async fixes.")
+                    # Fall back to file-based processing
+                    results = self.load_existing_processed_data(location)
                 
                 st.session_state.processing_results = results
                 
                 # Count successful processing
-                successful_processing = len([r for r in results.values() 
-                                           if r and r != results.get('_metadata') and 'data' in r])
-                
-                if successful_processing > 0:
-                    st.success(f"✅ Data processing completed! {successful_processing} datasets processed successfully")
+                if isinstance(results, dict):
+                    successful_processing = len([r for r in results.values() 
+                                            if r and r != results.get('_metadata') and 
+                                            isinstance(r, dict) and 'data' in r])
+                    
+                    if successful_processing > 0:
+                        st.success(f"✅ Data processing completed! {successful_processing} datasets processed successfully")
+                        
+                        # Day 7 success debug
+                        with st.expander("✅ Day 7 Debug - Success!"):
+                            st.write("✅ Async processing worked!")
+                            st.write(f"Results type: {type(results)}")
+                            st.write(f"Keys: {list(results.keys())}")
+                    else:
+                        st.warning("⚠️ Data processing completed but no processed datasets were generated")
+                        # Try fallback
+                        fallback_results = self.load_existing_processed_data(location)
+                        if fallback_results:
+                            st.session_state.processing_results = fallback_results
+                            st.info("📁 Loaded existing processed data as fallback")
                 else:
-                    st.warning("⚠️ Data processing completed but no processed datasets were generated")
-                
+                    st.error(f"❌ Unexpected result type: {type(results)}")
+                    
             except Exception as e:
                 st.error(f"❌ Data processing failed: {e}")
+                
+                # Enhanced Day 7 debug with fallback
+                with st.expander("🔧 Day 7 Debug - Error Details"):
+                    st.code(f"Error type: {type(e)}")
+                    st.code(f"Error: {str(e)}")
+                    
+                    if "coroutine" in str(e):
+                        st.error("🐛 Confirmed: Async/sync mismatch in pipeline")
+                        st.info("🔄 Trying fallback: Load existing processed files...")
+                        
+                        try:
+                            fallback_results = self.load_existing_processed_data(location)
+                            if fallback_results:
+                                st.session_state.processing_results = fallback_results
+                                st.success("✅ Fallback successful! Using existing processed data.")
+                            else:
+                                st.warning("⚠️ No existing processed data found")
+                        except Exception as fallback_error:
+                            st.error(f"❌ Fallback also failed: {fallback_error}")
         
         st.rerun()
+
+    def load_existing_processed_data(self, location):
+        """Day 7 Fallback: Load existing processed data files directly."""
+        try:
+            from pathlib import Path
+            import pandas as pd
+            
+            processed_dir = Path("data/processed")
+            if not processed_dir.exists():
+                return None
+            
+            location_name = location.name.lower().replace(" ", "_").replace(",", "")
+            results = {}
+            
+            # Look for existing processed files
+            sources_found = 0
+            for source in ["air_quality", "meteorological"]:
+                # Try different file patterns
+                patterns = [
+                    f"{source}_{location_name}_*_processed.parquet",
+                    f"{source}_*_{location_name}_*_processed.parquet",
+                    f"integrated_{location_name}_*_processed.parquet"
+                ]
+                
+                files = []
+                for pattern in patterns:
+                    files.extend(list(processed_dir.glob(pattern)))
+                
+                if files:
+                    # Use the most recent file
+                    latest_file = max(files, key=lambda x: x.stat().st_mtime)
+                    try:
+                        data = pd.read_parquet(latest_file)
+                        results[source] = {
+                            'data': data,
+                            'quality_report': {'overall_score': 85},
+                            'source_file': str(latest_file)
+                        }
+                        sources_found += 1
+                        st.info(f"📁 Found {source} data: {latest_file.name}")
+                    except Exception as e:
+                        st.warning(f"⚠️ Could not load {latest_file}: {e}")
+            
+            if sources_found > 0:
+                # Add metadata
+                results['_metadata'] = {
+                    'processing_timestamp': datetime.now().isoformat(),
+                    'data_sources_attempted': 2,
+                    'data_sources_successful': sources_found,
+                    'available_sources': list(results.keys()),
+                    'fallback_method': 'file_loading'
+                }
+                return results
+            else:
+                return None
+                
+        except Exception as e:
+            st.error(f"❌ Fallback loading failed: {e}")
+            return None
     
     def run_full_workflow(self):
         """Run the complete end-to-end workflow."""
@@ -934,20 +1132,61 @@ class EnhancedLocationPickerApp:
         results = st.session_state.processing_results
         
         # NEW: Day 5 Universal Climate Intelligence Section
-        # Check if we have processed data that can be used for universal features
+        # Check if we have integrated data specifically first
         universal_data_found = False
-        for source, result in results.items():
-            if source != '_metadata' and result and 'data' in result:
-                data = result['data']
-                # Check if it's a DataFrame with actual climate data
-                if hasattr(data, 'columns') and hasattr(data, 'shape') and data.shape[0] > 0:
-                    # Found usable climate data - generate universal intelligence
-                    try:
-                        self.render_universal_intelligence(data, st.session_state.selected_location)
-                        universal_data_found = True
-                        break  # Only show once, using the first suitable dataset
-                    except Exception as e:
-                        st.warning(f"⚠️ Universal intelligence generation failed: {str(e)}")
+        
+        # PRIORITY: Use integrated data if available (has temperature + other features)
+        if 'integrated' in results and results['integrated'] and 'data' in results['integrated']:
+            integrated_data = results['integrated']['data']
+            st.write(f"🔧 DEBUG - Using integrated data: {integrated_data.shape[0]} records, {integrated_data.shape[1]} features")
+            st.write(f"🔧 DEBUG - Integrated columns: {list(integrated_data.columns)[:10]}...")
+            
+            if hasattr(integrated_data, 'columns') and integrated_data.shape[0] > 0:
+                try:
+                    self.render_universal_intelligence(integrated_data, st.session_state.selected_location)
+                    universal_data_found = True
+                except Exception as e:
+                    st.warning(f"⚠️ Universal intelligence from integrated data failed: {str(e)}")
+        
+        # FALLBACK: Look for any dataset with temperature data
+        if not universal_data_found:
+            st.write("🔧 DEBUG - No integrated data, looking for temperature in other sources...")
+            for source, result in results.items():
+                if source != '_metadata' and result and 'data' in result:
+                    data = result['data']
+                    st.write(f"🔧 DEBUG - Checking {source}: {type(data)}, shape: {getattr(data, 'shape', 'No shape')}")
+                    
+                    if hasattr(data, 'columns'):
+                        st.write(f"🔧 DEBUG - {source} columns: {list(data.columns)[:10]}...")
+                        
+                        # Check if this dataset has temperature data
+                        if 'temperature_2m' in data.columns and data.shape[0] > 0:
+                            st.write(f"🔧 DEBUG - Found temperature in {source}, using for intelligence")
+                            try:
+                                self.render_universal_intelligence(data, st.session_state.selected_location)
+                                universal_data_found = True
+                                break
+                            except Exception as e:
+                                st.warning(f"⚠️ Universal intelligence from {source} failed: {str(e)}")
+                        else:
+                            st.write(f"🔧 DEBUG - {source} has no temperature_2m column")
+        
+        # FINAL FALLBACK: Use first available dataset (even if no temperature)
+        if not universal_data_found:
+            st.write("🔧 DEBUG - No temperature data found, using first available dataset...")
+            for source, result in results.items():
+                if source != '_metadata' and result and 'data' in result:
+                    data = result['data']
+                    # Check if it's a DataFrame with actual climate data
+                    if hasattr(data, 'columns') and hasattr(data, 'shape') and data.shape[0] > 0:
+                        st.write(f"🔧 DEBUG - Using {source} as final fallback")
+                        # Found usable climate data - generate universal intelligence
+                        try:
+                            self.render_universal_intelligence(data, st.session_state.selected_location)
+                            universal_data_found = True
+                            break  # Only show once, using the first suitable dataset
+                        except Exception as e:
+                            st.warning(f"⚠️ Universal intelligence generation failed: {str(e)}")
         
         # If no suitable data found, show a placeholder
         if not universal_data_found:

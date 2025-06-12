@@ -128,7 +128,7 @@ def test_full_pipeline():
             location=location,
             start_date=start_date,
             end_date=end_date,
-            skip_collection=True  # Use existing data
+            skip_collection=False  # Use existing data
         )
         
         print("\n📊 Pipeline Results:")
