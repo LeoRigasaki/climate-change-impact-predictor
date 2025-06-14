@@ -186,7 +186,7 @@ class Day4IntegrationTester:
             pipeline_start = time.time()
             
             # Test with skip_collection=False to test full adaptive workflow
-            pipeline_results = await self.pipeline.process_global_location_async(
+            pipeline_results = await self.pipeline.process_global_location(
                 location=location,
                 start_date=start_date,
                 end_date=end_date,
@@ -510,7 +510,7 @@ class Day4IntegrationTester:
             logger.info("  ⚙️ Step 4: Global Pipeline Processing")
             step_start = time.time()
             
-            pipeline_results = await self.pipeline.process_global_location_async(
+            pipeline_results = await self.pipeline.process_global_location(
                 location=location,
                 start_date=start_date,
                 end_date=end_date,

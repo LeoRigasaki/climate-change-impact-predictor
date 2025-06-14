@@ -31,3 +31,11 @@ flake8>=6.0.0
 # Jupyter for Analysis
 jupyter>=1.0.0
 ipykernel>=6.25.0
+
+# Middlewares and Utilities
+fastapi>=0.95.0
+uvicorn>=0.22.0
+pydantic>=2.0.0
+gunicorn>=21.0.0
+uvloop>=0.17.0
+httptools>=0.6.0
