@@ -730,27 +730,29 @@ class EnhancedLocationPickerApp:
         st.markdown(card_html, unsafe_allow_html=True)
 
     def render_universal_intelligence(self, enhanced_data, location_info):
-        """Render the Universal Climate Intelligence section - Day 7 Health Advisory showcase."""
+        """Render the Universal Climate Intelligence section - Day 8 ENHANCED with Weather Forecasts."""
         
-        # Generate insights using Day 7 health advisory system
-        with st.spinner("🧠 Generating universal climate intelligence..."):
+        # Generate insights using Day 7 health advisory system + NEW weather forecasts
+        with st.spinner("🧠 Generating universal climate intelligence with weather forecasts..."):
             insights = self.get_universal_insights(enhanced_data, location_info)
-            st.session_state.universal_insights = insights
+            forecast_insights = self.get_weather_forecast_insights(enhanced_data, location_info)  # NEW
+            st.session_state.universal_insights = {**insights, **forecast_insights}
         
         # Render intelligence section with premium styling
         st.markdown("""
         <div class="intelligence-section">
             <h2 style="margin: 0 0 1rem 0; text-align: center;">🧠 Universal Climate Intelligence</h2>
             <p style="text-align: center; margin: 0 0 2rem 0; opacity: 0.9; font-style: italic;">
-                Powered by Day 7 Health Advisory System • Global Temperature Comparisons • Activity Recommendations
+                Powered by Day 8 Weather Forecasts • Health Advisory • Global Comparisons • Future Predictions
             </p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Create insight cards layout
+        # Create insight cards layout - ENHANCED with forecast data
         col1, col2, col3 = st.columns(3)
-        col4, col5 = st.columns(2)
+        col4, col5, col6 = st.columns(3)  # NEW ROW for forecast insights
         
+        # EXISTING cards (col1, col2, col3)
         with col1:
             health_info = insights['health_advice']
             self.render_insight_card(
@@ -762,7 +764,6 @@ class EnhancedLocationPickerApp:
         
         with col2:
             temp_info = insights['temp_vs_global']
-            # Show current temperature prominently
             if 'local_temp' in temp_info:
                 current_temp = temp_info['local_temp']
                 global_avg = temp_info['global_avg']
@@ -770,13 +771,13 @@ class EnhancedLocationPickerApp:
                 
                 if diff > 0:
                     display_text = f"{current_temp:.1f}°C"
-                    description = f"+{diff:.1f}°C above global avg ({global_avg:.1f}°C)"
+                    description = f"+{diff:.1f}°C above global avg"
                 elif diff < -1:
                     display_text = f"{current_temp:.1f}°C"
-                    description = f"{diff:.1f}°C below global avg ({global_avg:.1f}°C)"
+                    description = f"{diff:.1f}°C below global avg"
                 else:
                     display_text = f"{current_temp:.1f}°C"
-                    description = f"Near global average ({global_avg:.1f}°C)"
+                    description = "Near global average"
             else:
                 display_text = "Analyzing..."
                 description = "Global avg: 15.0°C"
@@ -796,22 +797,84 @@ class EnhancedLocationPickerApp:
                 air_info['color_class']
             )
         
+        # NEW ROW: Weather forecast insights
         with col4:
-            self.render_insight_card(
-                "🗺️ Climate Zone",
-                insights['climate_zone'],
-                "",
-                "Based on latitude classification"
-            )
+            if 'tomorrow_forecast' in forecast_insights:
+                tomorrow = forecast_insights['tomorrow_forecast']
+                temp_range_text = f"{tomorrow['min_temp']:.1f}°C - {tomorrow['max_temp']:.1f}°C"
+                self.render_insight_card(
+                    "🌅 Tomorrow's Weather",
+                    temp_range_text,
+                    "temp-normal",
+                    f"Range: {tomorrow['temp_range']:.1f}°C"
+                )
+            else:
+                self.render_insight_card(
+                    "🌅 Tomorrow's Weather",
+                    "Collecting forecast...",
+                    "temp-normal",
+                    "7-day forecast available"
+                )
         
         with col5:
-            self.render_insight_card(
-                "📅 Seasonal Intelligence",
-                insights['seasonal_pattern'],
-                "",
-                "Hemisphere-aware processing"
-            )
+            if 'tomorrow_precipitation' in forecast_insights:
+                precip = forecast_insights['tomorrow_precipitation']
+                if precip > 10:
+                    precip_text = f"{precip:.1f}mm"
+                    precip_class = "health-warning"
+                    precip_desc = "Heavy rain expected"
+                elif precip > 2:
+                    precip_text = f"{precip:.1f}mm"
+                    precip_class = "health-caution"
+                    precip_desc = "Light rain possible"
+                else:
+                    precip_text = "Dry"
+                    precip_class = "health-good"
+                    precip_desc = "No rain expected"
+                    
+                self.render_insight_card(
+                    "🌧️ Rain Forecast",
+                    precip_text,
+                    precip_class,
+                    precip_desc
+                )
+            else:
+                self.render_insight_card(
+                    "🌧️ Rain Forecast",
+                    "Analyzing...",
+                    "health-good",
+                    "Precipitation forecast"
+                )
         
+        with col6:
+            if 'tomorrow_uv' in forecast_insights:
+                uv = forecast_insights['tomorrow_uv']
+                if uv > 8:
+                    uv_text = f"UV {uv:.1f}"
+                    uv_class = "health-warning"
+                    uv_desc = "Very High - Protection needed"
+                elif uv > 6:
+                    uv_text = f"UV {uv:.1f}"
+                    uv_class = "health-caution"
+                    uv_desc = "High - Use sunscreen"
+                else:
+                    uv_text = f"UV {uv:.1f}"
+                    uv_class = "health-good"
+                    uv_desc = "Moderate exposure"
+                    
+                self.render_insight_card(
+                    "☀️ UV Index",
+                    uv_text,
+                    uv_class,
+                    uv_desc
+                )
+            else:
+                self.render_insight_card(
+                    "☀️ UV Index",
+                    "Checking...",
+                    "health-good",
+                    "Tomorrow's UV forecast"
+                )
         # Add detailed health recommendations
         health_info = insights['health_advice']
         if health_info and 'safety_warnings' in health_info:
@@ -1152,14 +1215,15 @@ class EnhancedLocationPickerApp:
                 st.divider()
     
     def render_data_availability_indicators(self, availability: Dict[str, bool]):
-        """Render data availability indicators."""
+        """Render data availability indicators - UPDATED for 4 sources including weather forecast."""
         if not availability:
             st.markdown('<span class="data-source-indicator checking">🔍 Checking...</span>', 
-                       unsafe_allow_html=True)
+                    unsafe_allow_html=True)
             return
         
         sources = {
             "air_quality": ("🌬️ Air Quality", availability.get("air_quality", False)),
+            "weather_forecast": ("🌤️ Weather Forecast", availability.get("weather_forecast", False)),  # NEW
             "meteorological": ("🛰️ Weather Data", availability.get("meteorological", False)),
             "climate_projections": ("🔮 Projections", availability.get("climate_projections", False))
         }
@@ -1168,22 +1232,22 @@ class EnhancedLocationPickerApp:
             css_class = "available" if available else "unavailable"
             status_icon = "✅" if available else "❌"
             st.markdown(f'<span class="data-source-indicator {css_class}">{status_icon} {source_name}</span>', 
-                       unsafe_allow_html=True)
+                    unsafe_allow_html=True)
         
         # Summary
         available_count = sum(availability.values())
         total_count = len(availability)
         coverage_pct = (available_count / total_count * 100) if total_count > 0 else 0
         
-        if coverage_pct >= 67:
+        if coverage_pct >= 75:  # Adjusted threshold for 4 sources
             coverage_status = "🟢 Excellent"
-        elif coverage_pct >= 33:
+        elif coverage_pct >= 50:  # Adjusted threshold
             coverage_status = "🟡 Partial"
         else:
             coverage_status = "🔴 Limited"
             
         st.markdown(f"**Coverage:** {coverage_status} ({available_count}/{total_count})")
-    
+        
     def render_location_map(self, location: LocationInfo):
         """Render interactive map for the selected location."""
         st.subheader("🗺️ Location Map")
@@ -1323,26 +1387,30 @@ class EnhancedLocationPickerApp:
         st.rerun()
     
     def start_data_collection(self):
-        """Start adaptive data collection for selected location."""
+        """Start adaptive data collection for selected location - UPDATED with forecast support."""
         location = st.session_state.selected_location
         
         # Set collection parameters
         end_date = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
         start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")  # Last 30 days
+        forecast_days = 7  # NEW: 7-day weather forecasts
         
         st.session_state.collection_status = {
             "status": "running",
             "start_time": time.time(),
             "location": location.name,
-            "date_range": f"{start_date} to {end_date}"
+            "date_range": f"{start_date} to {end_date}",
+            "forecast_days": forecast_days  # NEW
         }
         
-        with st.spinner(f"📥 Collecting climate data for {location.name}..."):
+        with st.spinner(f"📥 Collecting climate data + {forecast_days}-day forecast for {location.name}..."):
             try:
+                # UPDATED: Include forecast_days parameter
                 results = self.data_manager.fetch_adaptive_data_sync(
                     location=location,
                     start_date=start_date,
                     end_date=end_date,
+                    forecast_days=forecast_days,  # NEW
                     save=True,
                     force_all=False
                 )
@@ -1360,10 +1428,12 @@ class EnhancedLocationPickerApp:
                 })
                 
                 if successful_sources > 0:
-                    st.success(f"✅ Data collection completed! {successful_sources}/{total_sources} sources successful")
+                    # UPDATED: More specific success message
+                    forecast_collected = "✅ Including 7-day weather forecast!" if results.get("weather_forecast") else ""
+                    st.success(f"✅ Data collection completed! {successful_sources}/{total_sources} sources successful {forecast_collected}")
                 else:
                     st.warning("⚠️ Data collection completed but no data was retrieved")
-                
+                    
             except Exception as e:
                 st.session_state.collection_status.update({
                     "status": "failed",
@@ -1529,14 +1599,14 @@ class EnhancedLocationPickerApp:
         st.rerun()
     
     def render_collection_status(self):
-        """Render data collection status and results."""
+        """Render data collection status and results - UPDATED for weather forecasts."""
         status = st.session_state.collection_status
         
         st.markdown("### 📥 Data Collection Status")
         
         if status["status"] == "running":
             st.markdown('<div class="processing-status">🔄 Data collection in progress...</div>', 
-                       unsafe_allow_html=True)
+                    unsafe_allow_html=True)
         
         elif status["status"] == "completed":
             duration = status["end_time"] - status["start_time"]
@@ -1549,7 +1619,7 @@ class EnhancedLocationPickerApp:
             with col3:
                 st.metric("Location", status["location"])
             
-            # Detailed results
+            # UPDATED: Detailed results including weather forecast
             if status.get("results"):
                 st.markdown("**📊 Collection Results:**")
                 for source, data in status["results"].items():
@@ -1557,6 +1627,14 @@ class EnhancedLocationPickerApp:
                         if source == "air_quality":
                             records = len(data.get('hourly', {}).get('time', []))
                             st.markdown(f"✅ **Air Quality:** {records} hourly records")
+                        elif source == "weather_forecast":  # NEW
+                            hourly_records = len(data.get('hourly', {}).get('time', []))
+                            daily_records = len(data.get('daily', {}).get('time', []))
+                            has_current = 'current' in data and data['current']
+                            st.markdown(f"✅ **Weather Forecast:** {hourly_records} hourly + {daily_records} daily records")
+                            if has_current:
+                                current_temp = data['current'].get('temperature_2m', 'N/A')
+                                st.markdown(f"   🌡️ Current: {current_temp}°C")
                         elif source == "meteorological":
                             records = len(data.get('properties', {}).get('parameter', {}))
                             st.markdown(f"✅ **Meteorological:** {records} daily records")
@@ -1564,11 +1642,11 @@ class EnhancedLocationPickerApp:
                             records = len(data.get('data', []) if isinstance(data.get('data'), list) else [data.get('data')])
                             st.markdown(f"✅ **Climate Projections:** {records} scenarios")
                     else:
-                        st.markdown(f"❌ **{source.title()}:** Collection failed")
+                        st.markdown(f"❌ **{source.replace('_', ' ').title()}:** Collection failed")
         
         elif status["status"] == "failed":
             st.markdown(f'<div class="warning-message">❌ Collection failed: {status.get("error", "Unknown error")}</div>', 
-                       unsafe_allow_html=True)
+                    unsafe_allow_html=True)
     
     def render_processing_results(self):
         """Render data processing results with Day 7 Universal Climate Intelligence."""
@@ -1731,7 +1809,52 @@ class EnhancedLocationPickerApp:
                 use_container_width=True
             ):
                 self.select_location(location)
-    
+    def get_weather_forecast_insights(self, enhanced_data, location_info):
+        """NEW: Extract weather forecast insights for next few days."""
+        insights = {}
+        
+        try:
+            # Check if we have weather forecast data in session state
+            if st.session_state.collection_status.get("results", {}).get("weather_forecast"):
+                forecast_data = st.session_state.collection_status["results"]["weather_forecast"]
+                
+                # Get tomorrow's forecast
+                if 'daily' in forecast_data and forecast_data['daily']:
+                    daily = forecast_data['daily']
+                    if 'temperature_2m_max' in daily and len(daily['temperature_2m_max']) > 1:
+                        tomorrow_max = daily['temperature_2m_max'][1]  # Tomorrow (index 1)
+                        tomorrow_min = daily['temperature_2m_min'][1]
+                        
+                        insights['tomorrow_forecast'] = {
+                            'max_temp': tomorrow_max,
+                            'min_temp': tomorrow_min,
+                            'temp_range': tomorrow_max - tomorrow_min
+                        }
+                    
+                    # Get precipitation forecast
+                    if 'precipitation_sum' in daily and len(daily['precipitation_sum']) > 1:
+                        tomorrow_precip = daily['precipitation_sum'][1]
+                        insights['tomorrow_precipitation'] = tomorrow_precip
+                    
+                    # Get UV index
+                    if 'uv_index_max' in daily and len(daily['uv_index_max']) > 1:
+                        tomorrow_uv = daily['uv_index_max'][1]
+                        insights['tomorrow_uv'] = tomorrow_uv
+                
+                # Get current conditions
+                if 'current' in forecast_data and forecast_data['current']:
+                    current = forecast_data['current']
+                    insights['current_conditions'] = {
+                        'temperature': current.get('temperature_2m'),
+                        'humidity': current.get('relative_humidity_2m'),
+                        'wind_speed': current.get('wind_speed_10m'),
+                        'weather_code': current.get('weather_code')
+                    }
+            
+        except Exception as e:
+            st.warning(f"⚠️ Weather forecast insights processing failed: {str(e)}")
+        
+        return insights    
     def render_service_stats(self):
         """Render enhanced service statistics."""
         st.sidebar.subheader("📊 System Status")
