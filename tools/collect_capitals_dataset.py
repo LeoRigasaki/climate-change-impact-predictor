@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-🌍 Global Cities Climate Data Collector - Day 9 Enhanced Dataset
-tools/collect_cities_data.py
+🏛️ World Capitals Climate Data Collector - Day 8 Dataset Creation
+tools/collect_capitals_dataset.py
 
-Collects climate data for ALL cities globally with temporal variation.
-Enhanced version supporting 63,904+ cities with multiple time periods.
+Collects comprehensive climate data for world capitals to create 
+massive training dataset for global climate prediction neural network.
 """
 
 import sys
@@ -24,17 +24,22 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 from src.core.location_service import LocationService, LocationInfo
 from src.core.data_manager import ClimateDataManager
 
-# Configure logging
+# Configure clean logging
 logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
-class GlobalCitiesCollector:
+class CapitalsDataCollector:
     """
-    🌍 Global Cities Climate Data Collector
+    🏛️ World Capitals Climate Data Collector
     
-    Enhanced version collecting climate data for ALL cities worldwide
-    with multiple time periods for comprehensive training dataset.
+    Collects comprehensive climate data for all world capitals:
+    - Temperature, humidity, precipitation, wind
+    - Air quality (PM2.5, AQI, pollutants) 
+    - Weather forecasts (7-day)
+    - Climate projections (IPCC scenarios)
+    
+    Creates massive training dataset for neural network.
     """
     
     def __init__(self):
@@ -43,162 +48,118 @@ class GlobalCitiesCollector:
         
         # Collection tracking
         self.collection_stats = {
-            "total_cities": 0,
+            "total_capitals": 0,
             "successful_collections": 0,
             "failed_collections": 0,
             "total_records": 0,
             "start_time": None,
-            "countries_processed": [],
-            "time_periods": 0
+            "countries_processed": []
         }
         
         # Output directories
-        self.output_dir = Path("data/cities_global")
+        self.output_dir = Path("data/capitals")
         self.output_dir.mkdir(exist_ok=True)
         
-        print("🌍 Global Cities Climate Data Collector initialized")
+        print("🏛️ World Capitals Climate Data Collector initialized")
     
-    def download_all_cities(self) -> List[Dict[str, str]]:
-        """Download complete global cities list from JSON source."""
+    def download_capitals_list(self) -> List[Dict[str, str]]:
+        """Download and parse world capitals from JSON source."""
         
-        print("📥 Downloading global cities database...")
+        print("📥 Downloading world capitals list...")
         
-        url = "https://raw.githubusercontent.com/samayo/country-json/master/src/country-by-cities.json"
+        # Try capitals first, fallback to cities
+        sources = [
+            "https://raw.githubusercontent.com/samayo/country-json/master/src/country-by-capital-city.json",
+            "https://raw.githubusercontent.com/samayo/country-json/master/src/country-by-cities.json"
+        ]
         
-        try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            
-            all_cities = []
-            
-            for country_data in data:
-                country = country_data.get("country", "Unknown")
-                cities_list = country_data.get("cities", [])
+        for source_url in sources:
+            try:
+                response = requests.get(source_url, timeout=30)
+                response.raise_for_status()
+                data = response.json()
                 
-                for city in cities_list:
-                    if city and city.strip():
-                        all_cities.append({
-                            "city": city.strip(),
-                            "country": country,
-                            "type": "city"
-                        })
-            
-            print(f"✅ Downloaded {len(all_cities)} cities from {len(data)} countries")
-            return all_cities
-            
-        except Exception as e:
-            print(f"❌ Failed to download cities: {e}")
-            return []
+                capitals = []
+                
+                # Parse different JSON formats
+                for country_data in data:
+                    country = country_data.get("country", "Unknown")
+                    
+                    if "capital" in country_data:
+                        # Capital city format
+                        capital = country_data["capital"]
+                        if capital and capital.strip():
+                            capitals.append({
+                                "city": capital.strip(),
+                                "country": country,
+                                "type": "capital"
+                            })
+                    
+                    elif "cities" in country_data:
+                        # Cities format - take first city as capital
+                        cities = country_data["cities"]
+                        if cities and len(cities) > 0:
+                            capitals.append({
+                                "city": cities[0].strip(),
+                                "country": country,
+                                "type": "major_city"
+                            })
+                
+                if capitals:
+                    print(f"✅ Downloaded {len(capitals)} capitals/major cities")
+                    return capitals
+                    
+            except Exception as e:
+                print(f"⚠️ Failed to download from {source_url}: {e}")
+                continue
+        
+        raise Exception("Failed to download capitals data from all sources")
     
-    def select_cities(self, all_cities: List[Dict], mode: str) -> List[Dict]:
-        """Select cities based on collection mode."""
+    async def collect_capital_climate_data(self, capital_info: Dict[str, str]) -> Optional[Dict]:
+        """Collect comprehensive climate data for a single capital."""
         
-        if mode == "test":
-            selected = all_cities[:50]
-            print(f"🎯 Test mode: {len(selected)} cities")
-            
-        elif mode == "medium":
-            selected = all_cities[:1000]
-            print(f"🎯 Medium dataset: {len(selected)} cities")
-            
-        elif mode == "large":
-            selected = all_cities[:10000]
-            print(f"🎯 Large dataset: {len(selected)} cities")
-            
-        elif mode == "all":
-            selected = all_cities
-            print(f"🎯 ALL CITIES MODE: {len(selected)} cities")
-            print(f"⚠️  This will take 15-30 HOURS to complete!")
-            
-            confirm = input("Continue with full collection? (yes/no): ").lower()
-            if confirm != "yes":
-                print("Collection cancelled")
-                return []
-        
-        else:
-            selected = all_cities[:100]
-            print(f"🎯 Default: {len(selected)} cities")
-        
-        return selected
-    
-    def generate_time_periods(self, num_periods: int = 4) -> List[Dict[str, str]]:
-        """Generate multiple time periods for temporal variation."""
-        
-        periods = []
-        base_date = datetime.now()
-        
-        for i in range(num_periods):
-            # Go back in time: current week, 1 month ago, 3 months ago, 6 months ago
-            if i == 0:
-                days_back = 7  # Last week
-            elif i == 1:
-                days_back = 30  # 1 month ago
-            elif i == 2:
-                days_back = 90  # 3 months ago
-            else:
-                days_back = 180  # 6 months ago
-            
-            end_date = base_date - timedelta(days=days_back)
-            start_date = end_date - timedelta(days=7)  # 7-day periods
-            
-            periods.append({
-                "period_name": f"period_{i+1}",
-                "start_date": start_date.strftime("%Y-%m-%d"),
-                "end_date": end_date.strftime("%Y-%m-%d"),
-                "description": f"Period {i+1} ({days_back} days ago)"
-            })
-        
-        return periods
-    
-    async def collect_city_climate_data(self, city_info: Dict[str, str], time_period: Dict[str, str]) -> Optional[Dict]:
-        """Collect climate data for a single city in a specific time period."""
-        
-        city = city_info["city"]
-        country = city_info["country"]
+        city = capital_info["city"]
+        country = capital_info["country"]
         full_name = f"{city}, {country}"
         
         try:
-            # Geocode the city
-            location = await self.location_service.geocode_location(full_name)
+            # Step 1: Geocode the capital
+            location = self.location_service.geocode_location(full_name)
             
             if not location or not location.latitude or not location.longitude:
                 return None
             
-            # Collect climate data for this time period
+            # Step 2: Collect comprehensive climate data
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+            
             climate_data = await self.data_manager.fetch_adaptive_data(
                 location=location,
-                start_date=time_period["start_date"],
-                end_date=time_period["end_date"],
+                start_date=start_date,
+                end_date=end_date,
                 forecast_days=7,
-                save=False
+                save=False  # Don't save individual files
             )
             
-            # Process the data
-            processed_data = self._process_climate_data(climate_data, location, city_info, time_period)
+            # Step 3: Process and structure the data
+            processed_data = self._process_climate_data(climate_data, location, capital_info)
             
             return processed_data
             
         except Exception as e:
             return None
     
-    def _process_climate_data(self, climate_data: Dict, location: LocationInfo, 
-                            city_info: Dict, time_period: Dict) -> Dict:
-        """Process raw climate data with temporal information."""
+    def _process_climate_data(self, climate_data: Dict, location: LocationInfo, capital_info: Dict) -> Dict:
+        """Process raw climate data into training format."""
         
+        # Extract key metrics from multi-source data
         processed = {
             "location": {
-                "city": city_info["city"],
-                "country": city_info["country"],
+                "city": capital_info["city"],
+                "country": capital_info["country"],
                 "latitude": location.latitude,
                 "longitude": location.longitude,
-                "type": city_info["type"]
-            },
-            "time_period": {
-                "period_name": time_period["period_name"],
-                "start_date": time_period["start_date"],
-                "end_date": time_period["end_date"],
-                "description": time_period["description"]
+                "type": capital_info["type"]
             },
             "features": {},
             "targets": {},
@@ -210,74 +171,75 @@ class GlobalCitiesCollector:
         
         record_count = 0
         
-        # Process Air Quality Data (same as before, but with -999 fix)
+        # Process Air Quality Data
         if climate_data.get("air_quality"):
             aq_data = climate_data["air_quality"]
             if "hourly" in aq_data:
                 hourly = aq_data["hourly"]
                 
-                # Temperature with -999 filter
+                # Extract features
                 if "temperature_2m" in hourly and hourly["temperature_2m"]:
-                    temps = [t for t in hourly["temperature_2m"] if t is not None and t != -999.0]
+                    temps = [t for t in hourly["temperature_2m"] if t is not None]
                     if temps:
-                        processed["features"]["current_temp"] = temps[-1]
+                        processed["features"]["current_temp"] = temps[-1]  # Latest
                         processed["targets"]["temp_avg"] = sum(temps) / len(temps)
                         processed["targets"]["temp_max"] = max(temps)
                         processed["targets"]["temp_min"] = min(temps)
                 
-                # PM2.5 with -999 filter
+                # Air quality features
                 if "pm2_5" in hourly and hourly["pm2_5"]:
-                    pm25_data = [p for p in hourly["pm2_5"] if p is not None and p != -999.0]
+                    pm25_data = [p for p in hourly["pm2_5"] if p is not None]
                     if pm25_data:
                         processed["features"]["current_pm25"] = pm25_data[-1]
                         processed["targets"]["aqi_avg"] = sum(pm25_data) / len(pm25_data)
                 
-                # Humidity with -999 filter
                 if "relative_humidity_2m" in hourly and hourly["relative_humidity_2m"]:
-                    humidity = [h for h in hourly["relative_humidity_2m"] if h is not None and h != -999.0]
+                    humidity = [h for h in hourly["relative_humidity_2m"] if h is not None]
                     if humidity:
                         processed["features"]["current_humidity"] = humidity[-1]
                 
-                record_count += len([t for t in hourly.get("time", []) if t])
+                record_count += len(hourly.get("time", []))
                 processed["metadata"]["sources_available"].append("air_quality")
         
         # Process Weather Forecast
         if climate_data.get("weather_forecast"):
             forecast = climate_data["weather_forecast"]
             
+            # Daily forecasts for targets
             if "daily" in forecast:
                 daily = forecast["daily"]
                 
-                # Extract forecast targets with -999 filter
-                for key, target_base in [
-                    ("temperature_2m_max", "temp_forecast_7day"),
-                    ("temperature_2m_min", "temp_min_forecast_7day"),
-                    ("precipitation_probability_max", "precip_prob_7day"),
-                    ("uv_index_max", "uv_index_7day")
-                ]:
-                    if key in daily and daily[key]:
-                        values = [v for v in daily[key][:7] if v is not None and v != -999.0]
-                        if values:
-                            for i, val in enumerate(values):
-                                processed["targets"][f"target_{target_base}_day{i+1}"] = val
+                if "temperature_2m_max" in daily and daily["temperature_2m_max"]:
+                    processed["targets"]["temp_forecast_7day"] = daily["temperature_2m_max"][:7]
                 
-                processed["metadata"]["sources_available"].append("weather_forecast")
+                if "temperature_2m_min" in daily and daily["temperature_2m_min"]:
+                    processed["targets"]["temp_min_forecast_7day"] = daily["temperature_2m_min"][:7]
+                
+                if "precipitation_probability_max" in daily and daily["precipitation_probability_max"]:
+                    processed["targets"]["precip_prob_7day"] = daily["precipitation_probability_max"][:7]
+                
+                if "uv_index_max" in daily and daily["uv_index_max"]:
+                    processed["targets"]["uv_index_7day"] = daily["uv_index_max"][:7]
+            
+            processed["metadata"]["sources_available"].append("weather_forecast")
         
-        # Process NASA Meteorological Data with -999 fix
+        # Process NASA Meteorological Data
         if climate_data.get("meteorological"):
             met_data = climate_data["meteorological"]
             if "properties" in met_data and "parameter" in met_data["properties"]:
                 params = met_data["properties"]["parameter"]
                 
-                # Temperature with -999 filter
+                # Historical temperature patterns
                 if "T2M" in params:
-                    temps = [t for t in params["T2M"].values() if t is not None and t != -999.0]
+                    temps = list(params["T2M"].values())
+                    temps = [t for t in temps if t is not None]
                     if temps:
                         processed["features"]["historical_temp_avg"] = sum(temps) / len(temps)
                 
-                # Wind with -999 filter
+                # Wind patterns
                 if "WS2M" in params:
-                    winds = [w for w in params["WS2M"].values() if w is not None and w != -999.0]
+                    winds = list(params["WS2M"].values())
+                    winds = [w for w in winds if w is not None]
                     if winds:
                         processed["features"]["wind_avg"] = sum(winds) / len(winds)
                 
@@ -287,7 +249,7 @@ class GlobalCitiesCollector:
         processed["features"]["latitude"] = location.latitude
         processed["features"]["longitude"] = location.longitude
         
-        # Climate zone classification
+        # Determine climate zone from coordinates
         lat = abs(location.latitude)
         if lat > 66.5:
             climate_zone = "polar"
@@ -300,124 +262,111 @@ class GlobalCitiesCollector:
         
         processed["features"]["climate_zone"] = climate_zone
         
-        # Add temporal features
-        start_date = datetime.strptime(time_period["start_date"], "%Y-%m-%d")
-        processed["features"]["month"] = start_date.month
-        processed["features"]["season"] = (start_date.month % 12) // 3  # 0=winter, 1=spring, etc.
+        # Calculate heat index if we have temp and humidity
+        if "current_temp" in processed["features"] and "current_humidity" in processed["features"]:
+            temp_c = processed["features"]["current_temp"]
+            humidity = processed["features"]["current_humidity"]
+            
+            # Simplified heat index calculation
+            if temp_c > 26 and humidity > 40:
+                heat_index = temp_c + (0.5 * (humidity - 40))
+                processed["targets"]["heat_index"] = heat_index
         
         processed["metadata"]["total_records"] = record_count
         
         return processed
     
-    async def collect_all_cities_data(self, collection_mode: str = "medium") -> Dict:
-        """Collect climate data for cities with temporal variation."""
+    async def collect_all_capitals(self, max_capitals: Optional[int] = None) -> Dict:
+        """Collect climate data for all world capitals."""
         
-        print("🌍 Starting Global Cities Climate Data Collection")
+        print("🏛️ Starting world capitals climate data collection")
         print("=" * 60)
         
         self.collection_stats["start_time"] = time.time()
         
-        # Download all cities
-        all_cities = self.download_all_cities()
-        if not all_cities:
-            return {"success": False, "error": "Failed to download cities"}
+        # Download capitals list
+        capitals = self.download_capitals_list()
         
-        # Select cities based on mode
-        selected_cities = self.select_cities(all_cities, collection_mode)
-        if not selected_cities:
-            return {"success": False, "error": "No cities selected"}
+        if max_capitals:
+            capitals = capitals[:max_capitals]
+            print(f"🎯 Limiting collection to first {max_capitals} capitals")
         
-        # Generate time periods
-        time_periods = self.generate_time_periods(4)  # 4 time periods
+        self.collection_stats["total_capitals"] = len(capitals)
         
-        self.collection_stats["total_cities"] = len(selected_cities)
-        self.collection_stats["time_periods"] = len(time_periods)
-        total_collections = len(selected_cities) * len(time_periods)
-        
-        print(f"📊 Collection Plan:")
-        print(f"   Cities: {len(selected_cities)}")
-        print(f"   Time periods: {len(time_periods)}")
-        print(f"   Total collections: {total_collections}")
-        print(f"   Estimated time: {total_collections * 10 // 60} minutes")
+        print(f"📊 Target: {len(capitals)} capitals")
+        print(f"⏱️ Estimated time: {len(capitals) * 15 // 60} minutes")
         print()
         
-        # Collect data
-        all_city_data = []
-        collection_count = 0
+        # Collect data for each capital
+        all_capitals_data = []
         
-        for period in time_periods:
-            print(f"📅 {period['description']}")
+        for i, capital_info in enumerate(capitals, 1):
+            city = capital_info["city"]
+            country = capital_info["country"]
             
-            for i, city_info in enumerate(selected_cities, 1):
-                collection_count += 1
-                city = city_info["city"]
-                country = city_info["country"]
+            print(f"🌍 [{i:3d}/{len(capitals)}] {city}, {country}")
+            
+            # Collect climate data
+            capital_data = await self.collect_capital_climate_data(capital_info)
+            
+            if capital_data:
+                all_capitals_data.append(capital_data)
+                self.collection_stats["successful_collections"] += 1
+                self.collection_stats["total_records"] += capital_data["metadata"]["total_records"]
+                self.collection_stats["countries_processed"].append(country)
                 
-                if collection_count % 100 == 0:
-                    print(f"🌍 Progress: {collection_count}/{total_collections} ({collection_count/total_collections*100:.1f}%)")
-                
-                # Collect climate data for this city in this time period
-                city_data = await self.collect_city_climate_data(city_info, period)
-                
-                if city_data:
-                    all_city_data.append(city_data)
-                    self.collection_stats["successful_collections"] += 1
-                    self.collection_stats["total_records"] += city_data["metadata"]["total_records"]
-                    
-                    if country not in self.collection_stats["countries_processed"]:
-                        self.collection_stats["countries_processed"].append(country)
-                else:
-                    self.collection_stats["failed_collections"] += 1
+                sources = len(capital_data["metadata"]["sources_available"])
+                print(f"    ✅ {capital_data['metadata']['total_records']} records, {sources} sources")
+            else:
+                self.collection_stats["failed_collections"] += 1
+                print(f"    ❌ Collection failed")
         
         # Save collected data
-        self._save_cities_dataset(all_city_data, collection_mode)
+        self._save_capitals_dataset(all_capitals_data)
         
         # Print final summary
         self._print_collection_summary()
         
         return {
-            "cities_data": all_city_data,
+            "capitals_data": all_capitals_data,
             "stats": self.collection_stats
         }
     
-    def _save_cities_dataset(self, cities_data: List[Dict], mode: str):
-        """Save the collected cities dataset."""
+    def _save_capitals_dataset(self, capitals_data: List[Dict]):
+        """Save the collected capitals dataset."""
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         # Save complete dataset
-        output_file = self.output_dir / f"global_cities_climate_{mode}_{timestamp}.json"
+        output_file = self.output_dir / f"world_capitals_climate_{timestamp}.json"
         
         with open(output_file, 'w') as f:
             json.dump({
                 "collection_metadata": self.collection_stats,
-                "cities_data": cities_data
+                "capitals_data": capitals_data
             }, f, indent=2, default=str)
         
         print(f"\n💾 Dataset saved: {output_file}")
         
-        # Save as CSV for ML training
-        self._save_cities_csv(cities_data, mode, timestamp)
+        # Also save as CSV for easy analysis
+        self._save_capitals_csv(capitals_data, timestamp)
     
-    def _save_cities_csv(self, cities_data: List[Dict], mode: str, timestamp: str):
-        """Save flattened dataset as CSV for ML training."""
+    def _save_capitals_csv(self, capitals_data: List[Dict], timestamp: str):
+        """Save flattened dataset as CSV for analysis."""
         
         csv_rows = []
         
-        for city_data in cities_data:
+        for capital in capitals_data:
             row = {}
             
             # Location info
-            row.update(city_data["location"])
-            
-            # Time period info
-            row.update({f"time_{k}": v for k, v in city_data["time_period"].items()})
+            row.update(capital["location"])
             
             # Features
-            row.update({f"feature_{k}": v for k, v in city_data["features"].items()})
+            row.update({f"feature_{k}": v for k, v in capital["features"].items()})
             
-            # Targets
-            for k, v in city_data["targets"].items():
+            # Targets (flatten lists)
+            for k, v in capital["targets"].items():
                 if isinstance(v, list):
                     for i, val in enumerate(v):
                         row[f"target_{k}_day{i+1}"] = val
@@ -425,87 +374,89 @@ class GlobalCitiesCollector:
                     row[f"target_{k}"] = v
             
             # Metadata
-            row["sources_count"] = len(city_data["metadata"]["sources_available"])
-            row["total_records"] = city_data["metadata"]["total_records"]
+            row["sources_count"] = len(capital["metadata"]["sources_available"])
+            row["total_records"] = capital["metadata"]["total_records"]
             
             csv_rows.append(row)
         
         if csv_rows:
             df = pd.DataFrame(csv_rows)
-            csv_file = self.output_dir / f"global_cities_features_{mode}_{timestamp}.csv"
+            csv_file = self.output_dir / f"world_capitals_features_{timestamp}.csv"
             df.to_csv(csv_file, index=False)
-            print(f"💾 ML Training CSV: {csv_file}")
+            print(f"💾 CSV dataset saved: {csv_file}")
             print(f"📊 Dataset shape: {df.shape} (rows × columns)")
     
     def _print_collection_summary(self):
         """Print comprehensive collection summary."""
         
         duration = time.time() - self.collection_stats["start_time"]
-        success_rate = self.collection_stats["successful_collections"] / (
-            self.collection_stats["successful_collections"] + self.collection_stats["failed_collections"]
-        ) if (self.collection_stats["successful_collections"] + self.collection_stats["failed_collections"]) > 0 else 0
+        success_rate = self.collection_stats["successful_collections"] / self.collection_stats["total_capitals"]
         
         print("\n" + "=" * 60)
-        print("🌍 GLOBAL CITIES COLLECTION COMPLETE")
+        print("🏛️ WORLD CAPITALS COLLECTION COMPLETE")
         print("=" * 60)
         
         print(f"📊 COLLECTION STATISTICS:")
-        print(f"   Total Collections Attempted: {self.collection_stats['successful_collections'] + self.collection_stats['failed_collections']}")
+        print(f"   Total Capitals Targeted: {self.collection_stats['total_capitals']}")
         print(f"   Successful Collections: {self.collection_stats['successful_collections']}")
         print(f"   Failed Collections: {self.collection_stats['failed_collections']}")
         print(f"   Success Rate: {success_rate:.1%}")
         print(f"   Total Climate Records: {self.collection_stats['total_records']:,}")
         print(f"   Collection Duration: {duration/60:.1f} minutes")
         
-        print(f"\n🌍 COVERAGE:")
+        print(f"\n🌍 GEOGRAPHIC COVERAGE:")
         print(f"   Countries Processed: {len(self.collection_stats['countries_processed'])}")
-        print(f"   Time Periods: {self.collection_stats['time_periods']}")
-        print(f"   Average Records per Collection: {self.collection_stats['total_records'] // max(self.collection_stats['successful_collections'], 1)}")
+        print(f"   Average Records per Capital: {self.collection_stats['total_records'] // max(self.collection_stats['successful_collections'], 1)}")
         
-        print(f"\n🚀 MACHINE LEARNING DATASET:")
-        print(f"   ✅ Massive temporal + geographic dataset")
-        print(f"   ✅ Global climate pattern coverage")
-        print(f"   ✅ Multiple time periods for seasonal learning")
-        print(f"   ✅ Ready for advanced neural network training")
+        print(f"\n🚀 READY FOR NEURAL NETWORK TRAINING:")
+        print(f"   ✅ Massive global dataset collected")
+        print(f"   ✅ Multi-source climate features")
+        print(f"   ✅ Real prediction targets available")
+        print(f"   ✅ Geographic diversity across continents")
 
 
 async def main():
-    """Main collection function with enhanced options."""
+    """Main collection function with options."""
     
-    print("🌍 Global Cities Climate Data Collector - Day 9 Enhanced")
-    print("Collect climate data for ALL cities with temporal variation")
+    print("🏛️ World Capitals Climate Data Collector")
+    print("Collecting comprehensive climate data for neural network training")
     print()
     
-    collector = GlobalCitiesCollector()
+    collector = CapitalsDataCollector()
     
     # Collection options
     print("📋 Collection Options:")
-    print("   1. Test (50 cities × 4 time periods = 200 samples)")
-    print("   2. Medium (1,000 cities × 4 time periods = 4,000 samples)")
-    print("   3. Large (10,000 cities × 4 time periods = 40,000 samples)")
-    print("   4. ALL CITIES (63,904 cities × 4 time periods = 255,616 samples)")
+    print("   1. Quick test (10 capitals)")
+    print("   2. Medium dataset (50 capitals)")
+    print("   3. Large dataset (100 capitals)")
+    print("   4. Full global dataset (all capitals)")
     print()
     
-    choice = input("Choose option (1-4): ").strip()
+    # Default to medium for testing
+    choice = input("Choose option (1-4) or press Enter for medium dataset: ").strip()
     
-    mode_map = {"1": "test", "2": "medium", "3": "large", "4": "all"}
-    mode = mode_map.get(choice, "test")
-    
-    if mode == "all":
-        print("⚠️  WARNING: This will take 15-30 HOURS and collect 250k+ samples!")
+    if choice == "1":
+        max_capitals = 10
+        print("🎯 Quick test: 10 capitals")
+    elif choice == "3":
+        max_capitals = 100
+        print("🎯 Large dataset: 100 capitals")
+    elif choice == "4":
+        max_capitals = None
+        print("🎯 Full global dataset: All capitals")
+    else:
+        max_capitals = 50
+        print("🎯 Medium dataset: 50 capitals")
     
     print()
     
     try:
         # Start collection
-        results = await collector.collect_all_cities_data(mode)
+        results = await collector.collect_all_capitals(max_capitals)
         
-        if results.get("success", True):
-            print(f"\n🎉 SUCCESS! Collected data for {len(results['cities_data'])} city/time combinations")
-            print("📁 Check data/cities_global/ directory for output files")
-            print("\n🚀 Ready for Day 9 neural network training!")
-        else:
-            print(f"\n❌ Collection failed: {results.get('error', 'Unknown error')}")
+        print(f"\n🎉 SUCCESS! Collected data for {len(results['capitals_data'])} capitals")
+        print("📁 Check data/capitals/ directory for output files")
+        print("\n🚀 Next step: Upload dataset to Google Colab for neural network training!")
         
         return True
         
@@ -518,13 +469,13 @@ async def main():
 
 
 if __name__ == "__main__":
-    print("🚀 Starting Global Cities Climate Data Collection...")
+    print("🚀 Starting World Capitals Climate Data Collection...")
     
     result = asyncio.run(main())
     
     if result:
         print("\n✅ COLLECTION COMPLETE")
-        print("🔥 Ready for Day 9 neural network training with massive dataset!")
+        print("🔥 Ready for Day 8 neural network training!")
     else:
         print("\n⚠️ Collection incomplete")
-        print("💡 Try smaller dataset size or check error messages")
+        print("💡 Try running again or check error messages")
