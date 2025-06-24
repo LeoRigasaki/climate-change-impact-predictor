@@ -78,11 +78,11 @@
 - ✅ Build model selection by region type
 
 #### **Day 9: Climate Impact Prediction**
-- [ ] Temperature extreme prediction (heat waves, cold snaps)
-- [ ] Air quality health risk assessment
-- [ ] Precipitation and flood risk modeling
-- [ ] Drought and water stress indicators
-- [ ] Economic impact estimation
+- ✅ Temperature extreme prediction (heat waves, cold snaps)
+- ✅ Air quality health risk assessment
+- ✅ Precipitation and flood risk modeling
+- ✅ Drought and water stress indicators
+- ✅ Economic impact estimation
 
 #### **Day 10: Advanced ML Techniques**
 - [ ] Deep learning models for climate patterns
