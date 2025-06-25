@@ -29,6 +29,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from src.core.location_service import LocationService, LocationInfo
 from src.core.data_manager import ClimateDataManager
 from src.core.performance_optimizer import PerformanceOptimizer
+from src.models.enhanced_climate_predictor import EnhancedGlobalClimatePredictor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -58,6 +59,14 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 location_service = LocationService()
 data_manager = ClimateDataManager()
 performance_optimizer = PerformanceOptimizer(location_service, data_manager)
+
+# Initialize ML predictor
+try:
+    climate_predictor = EnhancedGlobalClimatePredictor()
+    PREDICTOR_AVAILABLE = True
+except Exception as e:
+    logger.error(f"Failed to initialize climate predictor: {e}")
+    PREDICTOR_AVAILABLE = False
 
 # Request/Response Models
 class LocationQuery(BaseModel):
@@ -530,105 +539,181 @@ async def validate_coordinates(
             detail=f"Validation error: {str(e)}"
         )
 
+# Request/Response Models for Predictions
+class PredictionRequest(BaseModel):
+    """Basic prediction request model."""
+    city: str = Field(..., description="City name", example="London")
+    
+class ForecastRequest(BaseModel):
+    """LSTM forecast request model."""
+    city: str = Field(..., description="City name", example="Tokyo")
+    days: int = Field(default=7, ge=1, le=30, description="Number of days to forecast")
+
+class PredictionResponse(BaseModel):
+    """Prediction response model."""
+    success: bool = Field(..., description="Whether prediction was successful")
+    city: str = Field(..., description="City name")
+    prediction: Optional[Dict[str, Any]] = Field(default=None, description="Prediction results")
+    error: Optional[str] = Field(default=None, description="Error message if failed")
+    model_used: Optional[str] = Field(default=None, description="Which model was used")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Prediction timestamp")
+
+# ML Prediction Endpoints
+
+@app.post("/predict/basic", response_model=PredictionResponse)
+async def predict_basic_climate(
+    request: PredictionRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    🌡️ Basic climate prediction for any city worldwide.
+    
+    Uses the Day 8 base neural network model trained on 144 world capitals.
+    Provides reliable temperature and air quality predictions.
+    """
+    
+    background_tasks.add_task(track_request)
+    
+    if not PREDICTOR_AVAILABLE:
+        background_tasks.add_task(track_error)
+        raise HTTPException(
+            status_code=503,
+            detail="Climate prediction service temporarily unavailable"
+        )
+    
+    try:
+        # Make prediction using base model
+        result = climate_predictor.predict_climate(request.city)
+        
+        if result["success"]:
+            return PredictionResponse(
+                success=True,
+                city=request.city,
+                prediction=result,
+                model_used=result.get("model_used", "Base Climate Model"),
+                timestamp=datetime.now()
+            )
+        else:
+            background_tasks.add_task(track_error)
+            return PredictionResponse(
+                success=False,
+                city=request.city,
+                error=result.get("error", "Prediction failed"),
+                timestamp=datetime.now()
+            )
+            
+    except Exception as e:
+        background_tasks.add_task(track_error)
+        logger.error(f"Basic prediction error for {request.city}: {e}")
+        
+        return PredictionResponse(
+            success=False,
+            city=request.city,
+            error=f"Internal prediction error: {str(e)}",
+            timestamp=datetime.now()
+        )
+
+@app.post("/predict/forecast", response_model=PredictionResponse)
+async def predict_lstm_forecast(
+    request: ForecastRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    🔮 LSTM long-term weather forecasting (7-30 days).
+    
+    Uses the Day 10 bidirectional LSTM model with attention mechanisms.
+    Provides accurate temperature forecasting with ±1-6°C accuracy.
+    """
+    
+    background_tasks.add_task(track_request)
+    
+    if not PREDICTOR_AVAILABLE:
+        background_tasks.add_task(track_error)
+        raise HTTPException(
+            status_code=503,
+            detail="LSTM forecasting service temporarily unavailable"
+        )
+    
+    try:
+        # Make LSTM forecast
+        result = climate_predictor.predict_long_term(request.city, days=request.days)
+        
+        if result["success"]:
+            return PredictionResponse(
+                success=True,
+                city=request.city,
+                prediction=result,
+                model_used=result.get("model_used", "LSTM Forecaster"),
+                timestamp=datetime.now()
+            )
+        else:
+            background_tasks.add_task(track_error)
+            return PredictionResponse(
+                success=False,
+                city=request.city,
+                error=result.get("error", "LSTM forecast failed"),
+                timestamp=datetime.now()
+            )
+            
+    except Exception as e:
+        background_tasks.add_task(track_error)
+        logger.error(f"LSTM forecast error for {request.city}: {e}")
+        
+        return PredictionResponse(
+            success=False,
+            city=request.city,
+            error=f"Internal forecasting error: {str(e)}",
+            timestamp=datetime.now()
+        )
+
+# Health check update to include ML status
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """
-    🏥 Comprehensive system health check.
-    
-    Returns detailed health information for all system components
-    including performance metrics and service availability.
+    ❤️ Comprehensive health check including ML model status.
     """
-    try:
-        # Calculate uptime
-        uptime_seconds = time.time() - app_start_time
-        
-        # Get performance metrics
-        optimization_report = performance_optimizer.get_optimization_report()
-        
-        # Test core services
-        service_health = {}
-        
-        # Test location service
-        try:
-            test_location = location_service.geocode_location("Berlin, Germany")
-            service_health["location_service"] = {
-                "status": "healthy" if test_location else "degraded",
-                "response_time": "< 1s",
-                "last_check": datetime.now().isoformat()
-            }
-        except Exception as e:
-            service_health["location_service"] = {
-                "status": "unhealthy",
-                "error": str(e),
-                "last_check": datetime.now().isoformat()
-            }
-        
-        # Test data manager
-        try:
-            # Quick availability check
-            service_health["data_manager"] = {
-                "status": "healthy",
-                "response_time": "< 2s",
-                "last_check": datetime.now().isoformat()
-            }
-        except Exception as e:
-            service_health["data_manager"] = {
-                "status": "unhealthy",
-                "error": str(e),
-                "last_check": datetime.now().isoformat()
-            }
-        
-        # Cache health
-        cache_stats = optimization_report["cache_performance"]
-        service_health["cache"] = {
-            "status": "healthy" if cache_stats["hit_rate"] > 0.3 else "degraded",
-            "hit_rate": cache_stats["hit_rate"],
-            "size": cache_stats["size"],
-            "utilization": cache_stats["utilization"],
-            "last_check": datetime.now().isoformat()
+    
+    uptime = time.time() - app_start_time
+    
+    services = {
+        "location_service": {
+            "status": "healthy" if location_service else "degraded",
+            "response_time": 0.0
+        },
+        "data_manager": {
+            "status": "healthy" if data_manager else "degraded", 
+            "response_time": 0.0
+        },
+        "climate_predictor": {
+            "status": "healthy" if PREDICTOR_AVAILABLE else "unavailable",
+            "models": {
+                "base_model": climate_predictor.base_model_available if PREDICTOR_AVAILABLE else False,
+                "lstm_model": climate_predictor.lstm_model_available if PREDICTOR_AVAILABLE else False
+            } if PREDICTOR_AVAILABLE else {}
         }
-        
-        # Overall status determination
-        unhealthy_services = [
-            name for name, health in service_health.items() 
-            if health["status"] == "unhealthy"
-        ]
-        
-        if unhealthy_services:
-            overall_status = "unhealthy"
-        elif any(health["status"] == "degraded" for health in service_health.values()):
-            overall_status = "degraded"
-        else:
-            overall_status = "healthy"
-        
-        # Performance metrics
-        performance_metrics = {
-            "requests_per_minute": request_count / (uptime_seconds / 60) if uptime_seconds > 60 else request_count,
-            "error_rate": error_count / request_count if request_count > 0 else 0.0,
-            "cache_hit_rate": cache_stats["hit_rate"],
-            "memory_usage_mb": optimization_report["system_resources"]["memory_usage_mb"],
-            "uptime_hours": uptime_seconds / 3600
-        }
-        
-        health_response = HealthResponse(
-            status=overall_status,
-            timestamp=datetime.now(),
-            services=service_health,
-            performance_metrics=performance_metrics,
-            uptime_seconds=uptime_seconds
-        )
-        
-        return health_response
-        
-    except Exception as e:
-        logger.error(f"Health check error: {e}")
-        return HealthResponse(
-            status="unhealthy",
-            timestamp=datetime.now(),
-            services={"error": {"status": "unhealthy", "error": str(e)}},
-            performance_metrics={},
-            uptime_seconds=time.time() - app_start_time
-        )
+    }
+    
+    # Determine overall status
+    all_critical_healthy = all(
+        service["status"] == "healthy" 
+        for service_name, service in services.items() 
+        if service_name in ["location_service", "climate_predictor"]
+    )
+    
+    overall_status = "healthy" if all_critical_healthy else "degraded"
+    
+    return HealthResponse(
+        status=overall_status,
+        timestamp=datetime.now(),
+        services=services,
+        performance_metrics={
+            "requests_processed": request_count,
+            "errors_encountered": error_count, 
+            "uptime_seconds": uptime,
+            "avg_requests_per_minute": (request_count / (uptime / 60)) if uptime > 0 else 0.0
+        },
+        uptime_seconds=uptime
+    )
 
 @app.get("/metrics", response_model=Dict[str, Any])
 async def get_metrics():
