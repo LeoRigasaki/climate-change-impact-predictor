@@ -918,20 +918,25 @@ class ClimatePredictor:
         if 'basic' in results:
             basic = results['basic']
             prediction = basic.get('prediction', {})
+            # Handle nested prediction structure from API
+            if isinstance(prediction.get('prediction'), dict):
+                prediction = prediction['prediction']
 
             st.markdown('<div class="prediction-title">Basic Climate Model</div>', unsafe_allow_html=True)
 
             col1, col2, col3 = st.columns(3)
 
             with col1:
-                temp = prediction.get('temperature', 'N/A')
+                # Try multiple possible key names for temperature
+                temp = prediction.get('temperature_avg') or prediction.get('temperature', 'N/A')
                 if isinstance(temp, (int, float)):
                     st.metric("Temperature", f"{temp:.1f} C")
                 else:
                     st.metric("Temperature", str(temp))
 
             with col2:
-                aqi = prediction.get('air_quality_index', 'N/A')
+                # Try multiple possible key names for AQI
+                aqi = prediction.get('aqi_prediction') or prediction.get('air_quality_index', 'N/A')
                 if isinstance(aqi, (int, float)):
                     st.metric("Air Quality Index", f"{aqi:.0f}")
                 else:
@@ -943,14 +948,23 @@ class ClimatePredictor:
         # LSTM Forecast Results
         if 'lstm' in results:
             lstm = results['lstm']
-            forecast = lstm.get('forecast', {})
+            forecast_data = lstm.get('forecast', [])
 
             st.markdown('<div class="prediction-title">LSTM Weather Forecast</div>', unsafe_allow_html=True)
 
-            if 'temperatures' in forecast:
-                temps = forecast['temperatures']
-                dates = forecast.get('dates', list(range(len(temps))))
+            # Handle forecast as list of objects with 'temperature' and 'date' keys
+            # Also handle old format with 'temperatures' array
+            temps = None
+            dates = None
 
+            if isinstance(forecast_data, list) and len(forecast_data) > 0:
+                temps = [f.get('temperature', 0) for f in forecast_data]
+                dates = [f.get('date', f"Day {i+1}") for i, f in enumerate(forecast_data)]
+            elif isinstance(forecast_data, dict) and 'temperatures' in forecast_data:
+                temps = forecast_data['temperatures']
+                dates = forecast_data.get('dates', list(range(len(temps))))
+
+            if temps and len(temps) > 0:
                 # Create forecast chart
                 fig = go.Figure()
                 fig.add_trace(go.Scatter(
